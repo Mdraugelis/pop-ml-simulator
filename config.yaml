@@ -1,0 +1,4 @@
+# Default configuration for pop-ml-simulator
+simulation:
+  population_size: 1000
+  num_years: 5
