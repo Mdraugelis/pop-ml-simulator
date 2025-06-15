@@ -5,6 +5,8 @@ This repository contains Python code and Jupyter notebooks for simulating and ev
 ## Project Structure
 - `src/` – Core Python modules for the project, simulations and analysis.
 - `notebooks/` – Jupyter notebooks used for data exploration and method experimentation. They may also contain embedded tests via `ipytest`.
+- 'experiments' - Hold outputs from experimental runs
+- 'configs' - Hold configuration files
 - `tests/` – Unit tests covering the modules in `src/`. Includes a `run_tests.py` helper for running tests with coverage.
 - Other files such as `config.yaml`, `requirements.txt`, and `requirements-notebook.txt` contain configuration and dependencies.
 
