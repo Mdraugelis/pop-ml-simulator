@@ -1,9 +1,5 @@
 pytest
 pytest-cov
-flake8
-mypy
-numpy
-pandas
 
 # Core dependencies
 numpy>=1.21.0
@@ -26,3 +22,5 @@ h5py>=3.6.0     # For HDF5 files
 
 # Validation
 pydantic>=1.9.0
+flake8
+mypy
