@@ -1,7 +1,35 @@
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
 *.pyc
 *.pyo
 *.egg-info/
 .eggs/
 coverage.xml
 .ipynb_checkpoints/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Project specific
+outputs/
+multirun/
+.env
+*.log
+.coverage
+htmlcov/
+.pytest_cache/
+*.parquet
+*.csv
+!configs/**/*.yaml
