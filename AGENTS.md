@@ -11,7 +11,7 @@ This repository contains Python code and Jupyter notebooks for simulating and ev
 - Other files such as `config.yaml`, `requirements.txt`, and `requirements-notebook.txt` contain configuration and dependencies.
 
 ## Coding Conventions
-- **Language**: Python 3.9.
+- **Language**: Python 3.13.5
 - **Libraries**: numpy, pandas, matplotlib, statsmodels and related scientific libraries. Jupyter notebooks rely on the packages listed in `requirements-notebook.txt`.
 - **Style**: Follow standard PEP8 conventions. Use snake_case for functions and variables and PascalCase for classes. Provide descriptive docstrings and type hints where practical.
 
