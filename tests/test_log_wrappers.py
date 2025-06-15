@@ -12,10 +12,15 @@ def test_public_functions_are_decorated() -> None:
             continue
         tree = ast.parse(py_file.read_text())
         for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef) and not node.name.startswith("_"):
+            if (
+                isinstance(node, ast.FunctionDef)
+                and not node.name.startswith("_")
+            ):
                 has_decorator = any(
                     isinstance(d, ast.Name) and d.id == "log_call" or
                     isinstance(d, ast.Attribute) and d.attr == "log_call"
                     for d in node.decorator_list
                 )
-                assert has_decorator, f"{py_file}:{node.name} missing @log_call"
+                assert has_decorator, (
+                    f"{py_file}:{node.name} missing @log_call"
+                )
