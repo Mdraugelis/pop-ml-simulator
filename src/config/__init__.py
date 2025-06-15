@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from hydra import compose, initialize_config_dir
 from omegaconf import DictConfig
@@ -11,7 +11,7 @@ CONFIG_DIR = Path(__file__).resolve().parents[2] / "configs"
 
 
 @log_call
-def load_config(overrides: List[str] | None = None) -> DictConfig:
+def load_config(overrides: Optional[List[str]] = None) -> DictConfig:
     """Load and validate a configuration using Hydra."""
 
     overrides = overrides or []
