@@ -1,4 +1,4 @@
-from utils.logging import log_call
+from src.utils.logging import log_call
 
 
 @log_call

@@ -1,0 +1,10 @@
+defaults:
+  - population: medium
+  - hospitals: basic
+  - simulation: short
+  - hazards: standard
+
+experiment:
+  name: "phase1_baseline"
+  seed: 42
+  output_dir: "outputs"

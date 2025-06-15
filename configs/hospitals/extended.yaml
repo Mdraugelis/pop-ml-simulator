@@ -1,0 +1,8 @@
+n_hospitals: 15
+size_distribution:
+  small: 0.4
+  medium: 0.4
+  large: 0.2
+quality_range:
+  min: 0.4
+  max: 0.95
