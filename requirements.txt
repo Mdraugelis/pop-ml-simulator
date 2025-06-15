@@ -1,5 +1,8 @@
-pytest
-pytest-cov
+# Testing
+pytest>=7.0.0
+pytest-cov>=3.0.0
+pytest-mock>=3.6.0
+pytest-xdist>=2.5.0  # Parallel testing
 
 # Core dependencies
 numpy>=1.21.0
@@ -20,7 +23,12 @@ colorlog>=6.6.0
 pyarrow>=6.0.0  # For parquet files
 h5py>=3.6.0     # For HDF5 files
 
+# Code quality
+black>=22.0.0
+isort>=5.10.0
+flake8>=4.0.0
+mypy>=0.950
+pylint>=2.13.0
+
 # Validation
 pydantic>=1.9.0
-flake8
-mypy
