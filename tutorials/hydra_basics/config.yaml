@@ -1,0 +1,16 @@
+# Basic Hydra configuration example
+
+# These are our application parameters
+app:
+  name: "My Simulation"
+  version: 1.0
+
+# Simulation parameters  
+simulation:
+  n_steps: 100
+  seed: 42
+
+# Data parameters
+data:
+  input_file: "data/input.csv"
+  output_dir: "results"
