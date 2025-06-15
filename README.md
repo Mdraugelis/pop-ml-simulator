@@ -49,7 +49,7 @@ from pop_ml_sim import SimulationFramework
 from pop_ml_sim.config import load_config
 
 # Load configuration
-config = load_config("configs/basic_simulation.yaml")
+config = load_config()
 
 # Initialize framework
 sim = SimulationFramework(config)

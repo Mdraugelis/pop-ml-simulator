@@ -1,0 +1,4 @@
+n_persons: 1000
+age_min: 18
+age_max: 90
+random_seed: 1
