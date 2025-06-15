@@ -1,104 +1,294 @@
-# pop-ml-simulator
+# pop-ml-sim: Temporal Healthcare AI Simulation Framework
 
-**Population-based Machine Learning Performance Simulator for Healthcare**
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-A Python framework that combines population-level disease simulation with controlled ML model performance, enabling researchers to generate synthetic patient cohorts with precisely calibrated prediction models.
+A sophisticated simulation framework designed to optimize healthcare AI operations through evidence-based deployment strategies. By creating a "digital twin" of healthcare systems, we can evaluate AI implementation approaches and measure their operational impact before real-world deployment.
 
-## 🎯 What Makes This Different
+## 🎯 Core Innovation
 
-Unlike traditional synthetic data generators that create realistic data and see what ML performance emerges, `pop-ml-simulator` **reverse-engineers** the problem: you specify your target ML performance metrics (PPV, Sensitivity, etc.) and the simulator generates a population and model that achieves those targets.
+**Dual-level architecture** (individual patients + hospital organizations) enables comprehensive operational assessment by modeling realistic healthcare AI deployment patterns and their systemic effects.
 
-## 🚀 Key Features
+## 🏗️ Technical Architecture
 
-- **Population Simulation**: Age-stratified cohorts with realistic disease incidence using hazard-based modeling
-- **ML Performance Control**: Generate models that hit exact PPV and Sensitivity targets
-- **Flexible Risk Models**: Switch between Beta distribution and hazard-based approaches
-- **Vectorized Operations**: Optimized for large populations using NumPy and Numba
-- **Healthcare Focus**: Built specifically for clinical prediction scenarios (stroke, cancer screening, etc.)
-- **Python Native**: Seamless integration with scikit-learn, pandas, and ML workflows
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    SIMULATION FRAMEWORK                      │
+├─────────────────────────────────────────────────────────────┤
+│  Phase 1: Core Temporal Engine (Individual + Hospital)       │
+│  Phase 2: AI Risk & Intervention Layer                       │
+│  Phase 3: Causal Inference Analysis                          │
+│  Phase 4: Multi-Method Validation                            │
+└─────────────────────────────────────────────────────────────┘
+```
 
-## 🔬 Use Cases
+### System Components
 
-- **Algorithm Validation**: Test ML pipelines against known ground truth
-- **Performance Benchmarking**: Compare models under controlled conditions  
-- **Threshold Optimization**: Simulate different decision thresholds and their outcomes
-- **Clinical Trial Design**: Model patient populations before real studies
-- **Healthcare AI Research**: Generate datasets for method development
-- **Regulatory Validation**: Demonstrate ML performance under various scenarios
+- **Population Generation**: Create individuals with demographics
+- **Hospital Assignment**: Distribute across healthcare facilities  
+- **Temporal Evolution**: Incremental updates with hazard-based events
+- **AI Deployment Optimization**: AI-guided interventions and operational strategies
+- **Outcome Measurement**: Track individual and hospital operational metrics
+- **Impact Analysis**: Apply causal inference methods to measure operational effectiveness
 
-## 📊 Example: Stroke Risk Prediction
+## 🚀 Quick Start
+
+### Installation
+
+```bash
+git clone https://github.com/your-org/pop-ml-sim.git
+cd pop-ml-sim
+pip install -r requirements.txt
+```
+
+### Basic Usage
 
 ```python
-from pop_ml_simulator import PopulationSimulator, BetaRiskModel
+from pop_ml_sim import SimulationFramework
+from pop_ml_sim.config import load_config
 
-# Create population with age-dependent stroke risk
-sim = PopulationSimulator(
-    population_size=10000,
-    annual_incidence_rate=0.02,
-    num_years=5,
-    age_dependent_risk=True
-)
+# Load configuration
+config = load_config("configs/basic_simulation.yaml")
 
-# Generate ML model with target performance
-model = BetaRiskModel(target_ppv=0.75, target_sensitivity=0.80)
+# Initialize framework
+sim = SimulationFramework(config)
 
 # Run simulation
-sim.run_simulation()
-results = sim.run_risk_prediction_with_analysis(model)
+results = sim.run()
 
-print(f"Achieved PPV: {results['mean_ppv']:.3f}")
-print(f"Achieved Sensitivity: {results['mean_sensitivity']:.3f}")
+# Analyze operational impact
+sim.analyze_operational_effects(results)
 ```
 
-## 🛠️ Installation
+## 📋 Core Data Structures
 
+### PersonState
+```python
+@dataclass
+class PersonState:
+    person_id: int          # Unique identifier
+    hospital_id: int        # Assigned hospital
+    age: float             # Current age in years
+    alive: bool = True     # Survival status
+    had_incident: bool = False  # Incident history
+```
+
+### HospitalState
+```python
+@dataclass
+class HospitalState:
+    hospital_id: int
+    size_category: str  # 'small', 'medium', 'large'
+    baseline_quality: float
+    ai_adoption_propensity: float
+```
+
+## 🧮 Mathematical Foundations
+
+### Hazard Functions
+
+**Incident hazard (monthly rate):**
+```
+λ_incident(t | age, X) = base_hazard × exp(age_effect × (age - 50) / 10)
+```
+
+**Mortality hazard:**
+```
+λ_mortality(t | age, incident) = base_hazard × exp(age_effect × (age - 50) / 10) × incident_multiplier
+```
+
+**Discrete time probability conversion:**
+```
+P(event) = 1 - exp(-λ × Δt)
+```
+
+## 🔬 Development Phases
+
+### Phase 1: Core Temporal Engine ✅
+- [x] Basic population and temporal mechanics
+- [x] Configuration system with Hydra
+- [x] Hospital-level aggregation
+- [x] Performance optimization
+
+### Phase 2: AI Operations & Intervention Layer 🔄
+- [ ] ML model simulation with controlled operational performance
+- [ ] AR(1) temporal consistency for risk scores
+- [ ] Intervention assignment and resource allocation strategies
+- [ ] Hospital-level AI adoption and operational policies
+
+### Phase 3: Operational Impact Analysis 📋
+- [ ] Regression Discontinuity Design (RDD) for threshold-based interventions
+- [ ] Difference-in-Differences (DiD) for phased rollouts
+- [ ] Interrupted Time Series (ITS) for policy changes
+- [ ] Synthetic Control Method for comparative effectiveness
+
+### Phase 4: Operations Research Tools 🎯
+- [ ] ROI and cost-effectiveness calculators
+- [ ] Operational assumption validators
+- [ ] Implementation strategy comparison framework
+- [ ] Real-time operational dashboards
+
+## ⚙️ Configuration
+
+### Population Configuration
+```yaml
+population:
+  n_persons: 100000
+  n_hospitals: 5
+  age_distribution: uniform(18, 85)
+  hospital_distribution:
+    small: 0.5
+    medium: 0.35
+    large: 0.15
+```
+
+### Simulation Configuration
+```yaml
+simulation:
+  pre_intervention_months: 24
+  post_intervention_months: 12
+  delta_t: 1.0  # months
+  checkpoint_frequency: 6  # months
+```
+
+### Hazard Configuration
+```yaml
+hazards:
+  incident:
+    base_hazard: 0.001
+    age_effect: 0.02
+  mortality:
+    base_hazard: 0.0001
+    incident_multiplier: 2.0
+```
+
+## 🎯 Use Cases
+
+1. **AI Deployment Planning**: Optimize implementation strategies and resource allocation
+2. **Operational Readiness**: Assess staffing needs and workflow changes for AI interventions
+3. **Policy Impact Assessment**: Simulate operational effects of guideline changes
+4. **Performance Optimization**: Find optimal risk thresholds and intervention protocols
+5. **Implementation Strategy Validation**: Compare operational approaches and their effectiveness
+6. **Operations Training Platform**: Train teams on AI deployment and impact measurement
+
+## 📊 Performance Targets
+
+- Simulate 200k patients × 48 months < 120 seconds
+- Memory usage < 2GB for 100k population
+- Linear scaling with population size
+- Support all major operational impact assessment methods
+
+## 🧪 Testing
+
+Run the test suite:
 ```bash
-pip install pop-ml-simulator
+pytest tests/ -v --cov=pop_ml_sim
 ```
 
-Or for development:
+Performance benchmarks:
 ```bash
-git clone https://github.com/[username]/pop-ml-simulator.git
-cd pop-ml-simulator
-pip install -e .
+python benchmarks/performance_test.py
 ```
 
-## 📈 How It Works
+## 📁 Project Structure
 
-1. **Population Generation**: Creates synthetic patients with realistic age distributions and risk factors
-2. **Hazard Modeling**: Simulates disease incidence using time-dependent hazard functions
-3. **Risk Score Calibration**: Generates ML predictions that achieve specified performance targets
-4. **Performance Validation**: Tracks PPV, Sensitivity, and other metrics over time
+```
+pop-ml-sim/
+├── pop_ml_sim/
+│   ├── core/               # Core simulation engine
+│   ├── models/             # AI model operational simulation
+│   ├── operations/         # Operational impact analysis methods
+│   ├── config/             # Configuration management
+│   └── utils/              # Utility functions
+├── configs/                # YAML configuration files
+├── tests/                  # Test suite
+├── benchmarks/             # Performance benchmarks
+├── examples/               # Usage examples
+└── docs/                   # Documentation
+```
 
-## 🎛️ Flexible Architecture
+## 🔧 Development
 
-- **Hazard Functions**: Pluggable disease models (stroke, cancer, heart disease)
-- **Risk Models**: Beta distribution or hazard-based approaches
-- **Performance Targets**: PPV, Sensitivity, F1-score, or custom metrics
-- **Population Parameters**: Age distributions, mortality rates, risk factors
+### Setup Development Environment
+```bash
+pip install -e ".[dev]"
+pre-commit install
+```
 
-## 🔬 Validation & Research
+### Code Quality Standards
+- Type hints on all functions
+- Comprehensive docstrings
+- Black formatting
+- Flake8 compliance
+- Test coverage > 40%
 
-Built with healthcare AI research in mind:
-- Ground truth validation against real clinical data patterns
-- Statistical methods based on survival analysis and clinical epidemiology  
-- Performance metrics aligned with clinical practice (PPV, NPV, Sensitivity, Specificity)
-- Integration with standard ML evaluation frameworks
+### Contributing
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 Output Formats
+
+### Data Storage Options
+- **Parquet**: Default for large datasets
+- **CSV**: Human-readable exports
+- **HDF5**: Complex hierarchical data
+- **JSON**: Configuration and metadata
+
+### Compression
+- **Snappy** (default): Fast compression
+- **Gzip**: Better compression ratio
+- **LZ4**: Fastest compression
+
+## 🤝 Operational Assessment Requirements
+
+### Minimum Sample Sizes for Robust Analysis
+- **DiD**: 20-30 hospitals (10-15 treatment, 20-30 control) for phased rollouts
+- **Synthetic Control**: 3-5x donor units vs treated for comparative effectiveness
+- **RDD**: Sufficient density around threshold for intervention protocols
+- **ITS**: 24+ pre-intervention months for policy impact assessment
+
+### Hospital Configuration
+- Total: 30-50 hospitals minimum
+- Size variation for heterogeneity
+- Geographic/quality variation (future)
 
 ## 📚 Documentation
 
-- [Getting Started Guide](docs/getting_started.md)
-- [Examples & Tutorials](examples/)
-- [Clinical Use Cases](docs/clinical_examples.md)
+- [User Guide](docs/user_guide.md)
+- [API Reference](docs/api_reference.md)
+- [Configuration Guide](docs/configuration.md)
+- [Operational Assessment Guide](docs/operational_guide.md)
+- [Implementation Strategy Methods](docs/implementation_methods.md)
+- [Performance Tuning](docs/performance.md)
 
-## 📄 License
+## 📈 Success Metrics
 
-MIT License - see [LICENSE](LICENSE) for details.
+- ✅ Simulate 200k patients × 48 months < 120 seconds
+- ✅ Support all major operational impact assessment methods
+- ✅ Achieve specified operational performance targets (±5%)
+- ✅ Enable reproducible operational experiments
+- ✅ Provide practical deployment value
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-Inspired by [Synthea](https://github.com/synthetichealth/synthea), [simtrial](https://github.com/Merck/simtrial), and the broader synthetic healthcare data community.
+- Healthcare AI operations community
+- Implementation science methodologists
+- Open source scientific computing ecosystem
 
-## 🏷️ Keywords
+## 📞 Support
 
-`synthetic-data` `healthcare-ml` `population-simulation` `model-calibration` `clinical-prediction` `precision-recall` `healthcare-ai` `risk-prediction` `epidemiology` `biostatistics`
+- Documentation: [Read the Docs](https://pop-ml-sim.readthedocs.io/)
+- Issues: [GitHub Issues](https://github.com/your-org/pop-ml-sim/issues)
+- Discussions: [GitHub Discussions](https://github.com/your-org/pop-ml-sim/discussions)
+
+---
+
+**Built with ❤️ for advancing healthcare AI operations**
