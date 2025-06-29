@@ -4,8 +4,6 @@ Tests for Jupyter notebooks to ensure all cells execute successfully.
 
 import os
 import sys
-import subprocess
-import tempfile
 import nbformat
 from nbconvert.preprocessors import ExecutePreprocessor
 import pytest
@@ -29,7 +27,7 @@ def get_notebook_paths():
 def execute_notebook(notebook_path):
     """
     Execute a notebook and return True if successful, False otherwise.
-    
+
     This method is more robust than nbval as it:
     - Ignores logging output differences
     - Has configurable timeouts
@@ -37,7 +35,7 @@ def execute_notebook(notebook_path):
     """
     with open(notebook_path, 'r') as f:
         nb = nbformat.read(f, as_version=4)
-    
+
     # Configure the executor
     ep = ExecutePreprocessor(
         timeout=TIMEOUT,
@@ -45,10 +43,11 @@ def execute_notebook(notebook_path):
         # Allow stderr output (for logging)
         allow_errors=False
     )
-    
+
     try:
         # Execute the notebook
-        ep.preprocess(nb, {'metadata': {'path': os.path.dirname(notebook_path)}})
+        notebook_dir = os.path.dirname(notebook_path)
+        ep.preprocess(nb, {'metadata': {'path': notebook_dir}})
         return True, None
     except Exception as e:
         return False, str(e)
@@ -58,37 +57,40 @@ def execute_notebook(notebook_path):
 def test_notebook_execution(notebook_path):
     """Test that a notebook executes without errors."""
     success, error_message = execute_notebook(notebook_path)
-    
+
     if not success:
-        pytest.fail(f"Notebook {os.path.basename(notebook_path)} failed to execute: {error_message}")
+        notebook_name = os.path.basename(notebook_path)
+        pytest.fail(f"Notebook {notebook_name} failed to execute: "
+                    f"{error_message}")
 
 
 def test_notebooks_exist():
     """Test that we have notebooks to test."""
     notebook_paths = get_notebook_paths()
     assert len(notebook_paths) > 0, "No notebooks found to test"
-    
+
     expected_notebooks = [
         '01_risk_distribution_exploration.ipynb',
-        '02_temporal_risk_dynamics.ipynb', 
+        '02_temporal_risk_dynamics.ipynb',
         '03_hazard_modeling.ipynb'
     ]
-    
+
     found_notebooks = [os.path.basename(path) for path in notebook_paths]
-    
+
     for expected in expected_notebooks:
-        assert expected in found_notebooks, f"Expected notebook {expected} not found"
+        assert expected in found_notebooks, \
+            f"Expected notebook {expected} not found"
 
 
 if __name__ == "__main__":
     # Run a quick test
     notebook_paths = get_notebook_paths()
     print(f"Found {len(notebook_paths)} notebooks to test:")
-    
+
     for path in notebook_paths:
         print(f"  - {os.path.basename(path)}")
         success, error = execute_notebook(path)
         if success:
-            print(f"    ✅ Executed successfully")
+            print("    ✅ Executed successfully")
         else:
             print(f"    ❌ Failed: {error}")
