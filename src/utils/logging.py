@@ -4,8 +4,9 @@ import os
 import time
 from typing import Any, Callable, TypeVar
 
-LOG_LEVEL = os.getenv("APP_LOG_LEVEL", "INFO").upper()
-logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO))
+# Default to CRITICAL (effectively off) unless explicitly set for debug
+LOG_LEVEL = os.getenv("APP_LOG_LEVEL", "CRITICAL").upper()
+logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.CRITICAL))
 
 F = TypeVar("F", bound=Callable[..., Any])
 

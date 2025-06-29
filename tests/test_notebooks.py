@@ -57,9 +57,6 @@ def execute_notebook(notebook_path):
 @pytest.mark.parametrize("notebook_path", get_notebook_paths())
 def test_notebook_execution(notebook_path):
     """Test that a notebook executes without errors."""
-    # Set environment variable to suppress logging during tests
-    os.environ['APP_LOG_LEVEL'] = 'ERROR'
-    
     success, error_message = execute_notebook(notebook_path)
     
     if not success:

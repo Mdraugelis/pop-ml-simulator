@@ -7,9 +7,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 
 def main() -> None:
-    # Set log level to suppress logging output during tests
-    os.environ['APP_LOG_LEVEL'] = 'ERROR'
-    
     # Only add coverage args if pytest-cov is available
     try:
         import pytest_cov  # noqa: F401
