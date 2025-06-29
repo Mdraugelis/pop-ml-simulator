@@ -7,8 +7,10 @@ patient risks using autoregressive processes, seasonal effects, and shocks.
 
 import numpy as np
 from typing import Optional, Tuple, List, Dict
+from utils.logging import log_call
 
 
+@log_call
 def simulate_ar1_process(
     n_timesteps: int,
     rho: float,

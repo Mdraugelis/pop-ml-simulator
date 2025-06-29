@@ -7,8 +7,10 @@ beta distributions to model realistic population heterogeneity.
 
 import numpy as np
 from typing import Optional
+from utils.logging import log_call
 
 
+@log_call
 def assign_patient_risks(
     n_patients: int,
     annual_incident_rate: float,
@@ -62,6 +64,7 @@ def assign_patient_risks(
     return base_annual_risks
 
 
+@log_call
 def simulate_annual_incidents(
     risks: np.ndarray,
     n_simulations: int = 100,

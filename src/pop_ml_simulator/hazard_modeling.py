@@ -7,8 +7,10 @@ probabilities and hazard rates, and generating healthcare incidents.
 
 import numpy as np
 from typing import Optional, Dict, List, Union
+from utils.logging import log_call
 
 
+@log_call
 def annual_risk_to_hazard(
     annual_risk: Union[float, np.ndarray]
 ) -> Union[float, np.ndarray]:
@@ -59,6 +61,7 @@ def annual_risk_to_hazard(
     return hazard
 
 
+@log_call
 def hazard_to_timestep_probability(
     hazard: Union[float, np.ndarray],
     timestep_duration: float
@@ -284,35 +287,64 @@ class CompetingRiskIncidentGenerator(IncidentGenerator):
 
         events_dict = {}
 
-        # Generate events for at-risk patients
-        for event_type in self.event_types:
-            events = np.zeros(n_patients, dtype=bool)
+        # Calculate combined hazard for all event types for competing risks
+        if np.any(at_risk):
+            # Calculate timestep probabilities for each event type
+            event_probs = {}
+            for event_type in self.event_types:
+                if event_type in annual_risks_dict:
+                    annual_risks = annual_risks_dict[event_type]
+                    annual_hazards = annual_risk_to_hazard(
+                        annual_risks[at_risk]
+                    )
+                    timestep_probs = hazard_to_timestep_probability(
+                        annual_hazards, self.timestep_duration
+                    )
+                    event_probs[event_type] = timestep_probs
+                else:
+                    event_probs[event_type] = np.zeros(int(np.sum(at_risk)))
 
-            if event_type in annual_risks_dict and np.any(at_risk):
-                # Get risks for this event type
-                annual_risks = annual_risks_dict[event_type]
+            # Generate random draws for at-risk patients
+            random_draws = np.random.uniform(0, 1, int(np.sum(at_risk)))
 
-                # Convert to timestep probabilities
-                annual_hazards = annual_risk_to_hazard(annual_risks[at_risk])
-                timestep_probs = hazard_to_timestep_probability(
-                    annual_hazards, self.timestep_duration
-                )
+            # Cumulative probability approach for competing risks
+            cumulative_prob = np.zeros(int(np.sum(at_risk)))
+            at_risk_indices = np.where(at_risk)[0]
 
-                # Generate events
-                random_draws = np.random.uniform(0, 1, int(np.sum(at_risk)))
-                events[at_risk] = random_draws < timestep_probs
+            for i, event_type in enumerate(self.event_types):
+                events = np.zeros(n_patients, dtype=bool)
 
-            events_dict[event_type] = events
+                # Check which patients have this event (competing risks)
+                lower_bound = cumulative_prob.copy()
+                cumulative_prob += event_probs[event_type]
 
-            # Update history
-            self.event_history[event_type].append(events)
+                # Patients get this event if random draw is in this interval
+                event_mask = ((random_draws >= lower_bound) &
+                              (random_draws < cumulative_prob))
+                events[at_risk_indices[event_mask]] = True
 
-            # Update cumulative
-            if self.cumulative_events[event_type] is None:
-                self.cumulative_events[event_type] = events.astype(int)
-            else:
-                new_events = events & (self.cumulative_events[event_type] == 0)
-                self.cumulative_events[event_type] += new_events.astype(int)
+                events_dict[event_type] = events
+
+                # Update history
+                self.event_history[event_type].append(events)
+
+                # Update cumulative
+                if self.cumulative_events[event_type] is None:
+                    self.cumulative_events[event_type] = events.astype(int)
+                else:
+                    new_events = (events &
+                                  (self.cumulative_events[event_type] == 0))
+                    cumulative_events = self.cumulative_events[event_type]
+                    cumulative_events += new_events.astype(int)
+        else:
+            # No patients at risk, create empty events
+            for event_type in self.event_types:
+                events = np.zeros(n_patients, dtype=bool)
+                events_dict[event_type] = events
+                self.event_history[event_type].append(events)
+
+                if self.cumulative_events[event_type] is None:
+                    self.cumulative_events[event_type] = events.astype(int)
 
         # Handle censoring
         if censoring_prob > 0:

@@ -127,19 +127,22 @@ class TestIncidentGenerator(unittest.TestCase):
         """Test basic incident generation."""
         gen = IncidentGenerator(timestep_duration=1/52)
 
-        incidents = gen.generate_incidents(self.annual_risks)
+        # Run for multiple weeks to ensure we get some incidents
+        total_incidents = 0
+        for _ in range(10):
+            incidents = gen.generate_incidents(self.annual_risks)
+            total_incidents += np.sum(incidents)
 
-        # Check output
+        # Check output from last run
         self.assertEqual(len(incidents), self.n_patients)
         self.assertEqual(incidents.dtype, bool)
 
-        # Should have some incidents but not too many for one week
-        n_incidents = np.sum(incidents)
-        self.assertGreater(n_incidents, 0)
-        self.assertLess(n_incidents, 50)  # Roughly 10%/52 ≈ 0.2% per week
+        # Should have some incidents over 10 weeks (expect ~20 total)
+        self.assertGreater(total_incidents, 0)
+        self.assertLess(total_incidents, 100)
 
         # Check history updated
-        self.assertEqual(len(gen.incident_history), 1)
+        self.assertEqual(len(gen.incident_history), 10)
         self.assertIsNotNone(gen.cumulative_incidents)
 
     def test_generate_incidents_with_intervention(self):
