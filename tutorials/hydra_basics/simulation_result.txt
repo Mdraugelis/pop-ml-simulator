@@ -1,0 +1,11 @@
+Simulation with 200 steps completed!
+Configuration:
+app:
+  name: My Simulation
+  version: 1.0
+simulation:
+  n_steps: 200
+  seed: 42
+data:
+  input_file: data/input.csv
+  output_dir: results
