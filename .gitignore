@@ -33,3 +33,6 @@ htmlcov/
 *.parquet
 *.csv
 !configs/**/*.yaml
+
+# Pickle files (no longer used)
+*.pkl
