@@ -192,7 +192,7 @@ class IncidentGenerator:
         """
         if self.cumulative_incidents is None:
             return 0.0
-        return np.mean(self.cumulative_incidents > 0)
+        return float(np.mean(self.cumulative_incidents > 0))
 
     def reset(self) -> None:
         """Reset incident tracking to initial state."""
@@ -299,7 +299,7 @@ class CompetingRiskIncidentGenerator(IncidentGenerator):
                 )
 
                 # Generate events
-                random_draws = np.random.uniform(0, 1, np.sum(at_risk))
+                random_draws = np.random.uniform(0, 1, int(np.sum(at_risk)))
                 events[at_risk] = random_draws < timestep_probs
 
             events_dict[event_type] = events
@@ -338,22 +338,26 @@ class CompetingRiskIncidentGenerator(IncidentGenerator):
         n_patients = len(self.censored) if self.censored is not None else 0
 
         for event_type in self.event_types:
-            if self.cumulative_events[event_type] is not None:
-                # Only count events that occurred (not censored)
-                events_occurred = self.cumulative_events[event_type] > 0
-                if self.censored is not None:
-                    events_occurred &= ~self.censored
+            # Only count events that occurred (not censored)
+            cumulative_events = self.cumulative_events[event_type]
+            if cumulative_events is not None:
+                events_occurred = cumulative_events > 0
+            else:
+                events_occurred = np.zeros(n_patients, dtype=bool)
 
-                # Cumulative incidence function
-                if n_patients > 0:
-                    results[event_type] = np.sum(events_occurred) / n_patients
-                else:
-                    results[event_type] = 0.0
+            if self.censored is not None:
+                events_occurred &= ~self.censored
+
+            # Cumulative incidence function
+            if n_patients > 0:
+                results[event_type] = (
+                    float(np.sum(events_occurred)) / n_patients
+                )
             else:
                 results[event_type] = 0.0
 
         if self.censored is not None:
-            results['censored'] = np.mean(self.censored)
+            results['censored'] = float(np.mean(self.censored))
         else:
             results['censored'] = 0.0
 
