@@ -38,9 +38,11 @@ class TestAR1Process(unittest.TestCase):
         sigma = 0.1
         
         # High persistence
-        values_high = simulate_ar1_process(n_timesteps, rho=0.95, sigma=sigma, random_seed=42)
+        values_high = simulate_ar1_process(
+            n_timesteps, rho=0.95, sigma=sigma, random_seed=42)
         # Low persistence
-        values_low = simulate_ar1_process(n_timesteps, rho=0.5, sigma=sigma, random_seed=42)
+        values_low = simulate_ar1_process(
+            n_timesteps, rho=0.5, sigma=sigma, random_seed=42)
         
         # Calculate lag-1 autocorrelation
         def autocorr(x):
@@ -62,7 +64,8 @@ class TestAR1Process(unittest.TestCase):
     def test_simulate_ar1_initial_value(self):
         """Test with custom initial value."""
         initial = 1.5
-        values = simulate_ar1_process(10, 0.9, 0.1, initial_value=initial, random_seed=42)
+        values = simulate_ar1_process(
+            10, 0.9, 0.1, initial_value=initial, random_seed=42)
         
         self.assertEqual(values[0], initial)
     
@@ -109,7 +112,8 @@ class TestTemporalRiskSimulator(unittest.TestCase):
         self.assertEqual(len(sim.risk_history), 2)
         
         # Modifiers should have changed but still be within bounds
-        self.assertFalse(np.array_equal(sim.current_modifiers, np.ones(self.n_patients)))
+        self.assertFalse(np.array_equal(
+            sim.current_modifiers, np.ones(self.n_patients)))
         self.assertTrue(np.all(sim.current_modifiers >= 0.5))
         self.assertTrue(np.all(sim.current_modifiers <= 2.0))
     
@@ -152,7 +156,8 @@ class TestTemporalRiskSimulator(unittest.TestCase):
         self.assertEqual(risk_hist.shape, (self.n_patients, 11))
         
         # Check first timestep
-        np.testing.assert_array_almost_equal(modifier_hist[:, 0], np.ones(self.n_patients))
+        np.testing.assert_array_almost_equal(
+            modifier_hist[:, 0], np.ones(self.n_patients))
         np.testing.assert_array_almost_equal(risk_hist[:, 0], self.base_risks)
     
     def test_population_mean_preservation(self):

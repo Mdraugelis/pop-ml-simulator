@@ -1,0 +1,182 @@
+# Healthcare AI Temporal Simulation Framework
+
+## The Challenge of Healthcare AI Evaluation
+
+Healthcare AI systems promise to revolutionize patient care by identifying high-risk individuals for early intervention. However, evaluating these systems presents a fundamental challenge: in real-world deployments, we never observe the counterfactual—what would have happened without the AI intervention. This causes a particular challenge when the AI system is set to predict the risk of an unwanted outcome, so that an intervention is deployed to reduce the risk of occurrence. This is often the case, creating an unobservable outcome.
+
+**Example 1: Stroke Prevention Program**
+Consider an AI system that predicts which patients are at high risk of stroke within the next 12 months. When the model identifies a high-risk patient, the clinical team intervenes with preventive measures—perhaps prescribing anticoagulants, intensifying blood pressure management, or enrolling the patient in a specialized stroke prevention clinic. If the patient doesn't have a stroke, we face an attribution problem: Did the AI-guided intervention prevent the stroke, or was the patient never going to have one? The very success of the intervention obscures our ability to measure the AI's accuracy and impact.
+
+Or in a case where an AI program outcomes are completely observable but there are confounding factors that make attribution difficult.
+
+**Example 2: Breast Cancer Screening Program**
+An AI system identifies patients at elevated risk for breast cancer, prompting earlier or more frequent mammogram scheduling. When these patients receive timely screening, we can observe whether cancer is detected. However, attribution remains challenging: Did the AI system improve early detection rates, or were these improvements due to concurrent initiatives? Perhaps the health system simultaneously launched a general awareness campaign, hired additional scheduling staff, or implemented reminder systems that improved screening rates across all patients. The presence of these confounding factors makes it difficult to isolate the AI's specific contribution to improved outcomes.
+
+**Example 3: Heart Failure Readmission Prevention Program**
+A health system deploys an AI model to predict which patients are at high risk of readmission within 30 days after heart failure hospitalization. The model triggers automatic enrollment in a post-discharge monitoring program with daily weight checks, medication reminders, and nurse phone calls. This creates a complex evaluation challenge with multiple layers:
+
+ - Partial Observability: Some high-risk patients will be readmitted despite the intervention (observable), while others avoid readmission (counterfactual unknown)
+- Time-Varying Effects: The intervention's effectiveness may decay over time - very effective in week 1, less so by week 4
+- Spillover Effects: The enhanced monitoring program might improve care protocols for all heart failure patients, not just those flagged by the AI
+- Competing Events: Patients might die before the 30-day window ends, creating censoring issues in the analysis
+
+
+Traditional RCTs can address this but are expensive, time-consuming, and ethically complex. This creates a critical need for sophisticated simulation frameworks that can model realistic healthcare scenarios with known ground truth, as well as sophisticated operational monitoring methods to ensure these programs maintain their impact over time.
+
+## Project Purpose Statement
+
+This project is a temporal simulation framework that enables comprehensive causal inference analysis of AI-guided healthcare interventions. The system will support Regression Discontinuity Design (RDD), Difference-in-Differences (DiD), Interrupted Time Series (ITS), and Synthetic Control methods through a modular, incrementally buildable architecture.
+
+**Primary Goal:** Build a temporal simulation framework for testing causal inference methods with known ground truth
+
+**Secondary Goals:**
+- Explore and Validate AI intervention deployment design and strategies
+- Train operations and research on engineering design and causal inference methods
+- Compare method performance across scenarios
+- Enable policy testing before real-world implementation
+
+## Framework Components
+
+The simulator comprises:
+- **Population Simulation:** Age-stratified cohorts with realistic disease incidence using hazard-based modeling
+- **Machine Learning Simulation:** Generate models that hit exact PPV and Sensitivity targets
+- **Clinical Intervention + Causal Analysis:** Model intervention effects with known ground truth
+
+## What This Framework Enables
+
+### Real-World Applications:
+1. **AI Pilot Studies:** Test different AI deployment strategies before real implementation
+2. **Resource Planning:** Understand staffing needs for different intervention scenarios
+3. **Policy Evaluation:** Simulate the effect of changing treatment guidelines
+4. **Threshold Optimization:** Find required model performance and optimal risk cutoffs for interventions
+5. **Method Validation:** Test whether your causal inference approach can detect true effects
+
+### Causal Inference Capabilities:
+- **Known Ground Truth:** Unlike real studies, you KNOW the true causal effect
+- **Perfect Counterfactuals:** You can see what would have happened without intervention
+- **Method Comparison:** Test RDD vs DiD vs ITS on the same data
+- **Power Analysis:** Determine sample sizes needed to detect effects
+- **Robustness Testing:** See how sensitive your estimates are to violations of assumptions
+
+## Technical Implementation
+
+### 
+### Introduction: Building Realistic Healthcare AI Simulations
+
+The core strategy of this simulation framework is to balance multiple levels of fidelity to achieve our goal of enabling robust design decisions and requirements setting for healthcare AI interventions. Rather than attempting to model every clinical detail, we focus on the essential elements that drive causal inference validity while maintaining computational efficiency.
+
+**Simulation Strategy: Targeted Fidelity**
+
+Our approach prioritizes mathematical rigor in the areas that matter most for causal inference:
+
+-   **High fidelity** for population risk distributions, temporal dynamics, and intervention mechanics
+-   **Simplified abstractions** for clinical workflows and patient characteristics that don't affect causal estimates. Simulating targeted machine learning model characteristics.
+-   **Known ground truth** at every level, enabling validation of inference methods
+
+This targeted approach allows us to simulate populations of 100,000+ patients over multi-year horizons while maintaining the statistical properties necessary for valid causal inference.
+
+**Core Simulation Components**
+
+**1. Heterogeneous Patient Risk** Real patient populations exhibit extreme risk heterogeneity - most patients have minimal risk while a small fraction drive the majority of events. Our beta-distributed risk assignment captures this reality, ensuring that:
+
+-   Intervention effects vary realistically across the population
+-   Resource requirements concentrate among truly high-risk patients
+-   ML models face realistic discrimination challenges
+-   Population-level incident rates remain precisely controlled
+
+**2. Time-Varying Risk** Patient risk fluctuates due to seasonal patterns, life events, disease progression, and healthcare interactions. Our AR(1) temporal risk process introduces these dynamics while maintaining mathematical tractability, enabling:
+
+-   Realistic prediction window challenges
+-   Time-dependent intervention effects
+-   Natural variation that tests model robustness
+-   Temporal patterns that support time-series methods (ITS, DiD)
+
+**3. ML Model Simulation** Rather than training actual ML models, we simulate their behavior based on the true underlying risk function plus calibrated noise. This approach:
+
+-   Generates risk scores with specified PPV and sensitivity
+-   Models prediction windows matching clinical reality
+-   Allows precise control of model performance parameters
+-   Enables rapid testing of different performance scenarios
+
+**4. Quasi-Experimental Method Support** The simulation mechanics are specifically designed to enable evaluation across different causal inference approaches:
+
+-   **RDD**: Continuous risk scores with configurable thresholds for intervention
+-   **DiD**: Pre/post periods with treatment/control group assignments
+-   **ITS**: Long time series with clear intervention points
+-   **Synthetic Control**: Multiple units with staggered intervention timing
+
+**5. Comprehensive Sensitivity Analysis** The framework enables systematic exploration of key parameters:
+
+-   **Policy variations**: Different risk thresholds, intervention criteria, resource constraints
+-   **Intervention efficacy**: From minimal (5%) to substantial (50%) risk reduction
+-   **Model performance**: PPV from 20-60%, sensitivity from 30-80%
+-   **Population characteristics**: Varying base rates, risk distributions, temporal patterns
+
+This design philosophy - focused fidelity where it matters, elegant simplification elsewhere - creates a platform for healthcare AI evaluation that bridges the gap between theoretical causal inference and practical healthcare operations.
+
+### Patient Risk Assignment Process
+
+#### Phase 1: Individual Risk Initialization (One-Time Setup)
+
+**1. Beta-Distributed Individual Risk Assignment**
+
+Each patient receives a unique individual annual incident risk sampled from a beta distribution:
+
+```python
+# Distribution parameters for right-skewed shape
+concentration = 0.5
+alpha = concentration
+beta_param = alpha * (1/annual_incident_rate - 1)
+
+# Sample all patient risks at once
+raw_risks = np.random.beta(alpha, beta_param, n_patients)
+
+# Scale to ensure population mean equals target
+scaling_factor = annual_incident_rate / np.mean(raw_risks)
+base_annual_risks = np.clip(raw_risks * scaling_factor, 0, 0.99)
+```
+
+**2. Risk Score Storage**
+
+Store each patient's individual annual risk score for efficient access during temporal simulation.
+
+#### Phase 2: Temporal Incident Simulation (Each Timestep)
+
+**1. Risk Modification by Intervention Status**
+- Treatment Group: `Modified_risk = Individual_risk × (1 - intervention_effectiveness)`
+- Control Group: `Modified_risk = Individual_risk`
+
+**2. Convert Annual Risk to Monthly Hazard**
+```python
+monthly_hazard = -ln(1 - modified_annual_risk) / 12
+```
+
+**3. Convert Monthly Hazard to Timestep Probability**
+```python
+timestep_probability = 1 - exp(-monthly_hazard × δt)
+```
+
+**4. Incident Outcome Determination**
+- Generate random number for each patient
+- If random_number ≤ timestep_probability, patient has incident
+
+**5. Population-Level Validation**
+- Track cumulative incidents
+- Compare against expected total with tolerance (±5%)
+
+### Time-Varying Individual Risk Implementation
+
+For each patient i at time t:
+```
+risk_i(t) = base_risk_i × temporal_modifier_i(t)
+```
+
+Temporal modifier follows AR(1) process:
+```
+temporal_modifier_i(t) = ρ × temporal_modifier_i(t-1) + (1-ρ) × 1.0 + ε_i(t)
+```
+where:
+- ρ = 0.8-0.95 (persistence parameter)
+- ε_i(t) ~ N(0, σ²) with σ = 0.1-0.2
+- Bounded to [0.5, 2.0].                               
+

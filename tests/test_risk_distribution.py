@@ -4,7 +4,9 @@ Tests for risk distribution module.
 
 import unittest
 import numpy as np
-from pop_ml_simulator.risk_distribution import assign_patient_risks, simulate_annual_incidents
+from pop_ml_simulator.risk_distribution import (
+    assign_patient_risks, simulate_annual_incidents
+)
 
 
 class TestRiskDistribution(unittest.TestCase):

@@ -9,7 +9,9 @@ import numpy as np
 from typing import Optional, Dict, List, Tuple, Union
 
 
-def annual_risk_to_hazard(annual_risk: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+def annual_risk_to_hazard(
+    annual_risk: Union[float, np.ndarray]
+) -> Union[float, np.ndarray]:
     """
     Convert annual risk (probability) to constant hazard rate.
     
@@ -336,7 +338,10 @@ class CompetingRiskIncidentGenerator(IncidentGenerator):
                     events_occurred &= ~self.censored
                 
                 # Cumulative incidence function
-                results[event_type] = np.sum(events_occurred) / n_patients if n_patients > 0 else 0.0
+                if n_patients > 0:
+                    results[event_type] = np.sum(events_occurred) / n_patients
+                else:
+                    results[event_type] = 0.0
             else:
                 results[event_type] = 0.0
         
