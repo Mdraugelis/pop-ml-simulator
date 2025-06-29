@@ -4,11 +4,16 @@ pytest-cov>=3.0.0
 pytest-mock>=3.6.0
 pytest-xdist>=2.5.0  # Parallel testing
 nbval>=0.11.0  # Notebook validation
+nbconvert>=7.0.0  # Notebook execution
+nbformat>=5.0.0  # Notebook format
+ipykernel>=6.0.0  # IPython kernel
+jupyter-client>=7.0.0  # Jupyter client
 
 # Core dependencies
 numpy>=1.21.0
 pandas>=1.3.0
 scipy>=1.7.0
+matplotlib>=3.5.0  # For notebook plotting
 
 # Configuration management
 hydra-core>=1.3.0
