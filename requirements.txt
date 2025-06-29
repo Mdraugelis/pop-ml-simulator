@@ -8,12 +8,15 @@ nbconvert>=7.0.0  # Notebook execution
 nbformat>=5.0.0  # Notebook format
 ipykernel>=6.0.0  # IPython kernel
 jupyter-client>=7.0.0  # Jupyter client
+ipytest>=0.13.0  # Embedded notebook testing
+ipython>=8.0.0  # Enhanced Python shell for notebooks
 
 # Core dependencies
 numpy>=1.21.0
 pandas>=1.3.0
 scipy>=1.7.0
 matplotlib>=3.5.0  # For notebook plotting
+seaborn>=0.11.0  # Statistical plotting (used in notebooks)
 
 # Configuration management
 hydra-core>=1.3.0
@@ -35,6 +38,7 @@ isort>=5.10.0
 flake8>=4.0.0
 mypy>=0.950
 pylint>=2.13.0
+pre-commit>=2.17.0  # Code quality hooks
 
 # Validation
 pydantic>=1.9.0
