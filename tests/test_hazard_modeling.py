@@ -19,7 +19,8 @@ class TestHazardFunctions(unittest.TestCase):
         """Test risk to hazard conversion with scalar input."""
         # Test known values
         self.assertAlmostEqual(annual_risk_to_hazard(0.0), 0.0)
-        self.assertAlmostEqual(annual_risk_to_hazard(0.1), -np.log(0.9), places=6)
+        self.assertAlmostEqual(
+            annual_risk_to_hazard(0.1), -np.log(0.9), places=6)
         
         # For small risks, hazard ≈ risk
         small_risk = 0.01
@@ -66,7 +67,8 @@ class TestHazardFunctions(unittest.TestCase):
         
         # Daily
         daily_prob = hazard_to_timestep_probability(hazard, 1/365)
-        self.assertLess(daily_prob, hazard / 365 * 1.01)  # Should be close to linear
+        # Should be close to linear approximation
+        self.assertLess(daily_prob, hazard / 365 * 1.01)
         
         # Annual
         annual_prob = hazard_to_timestep_probability(hazard, 1.0)
@@ -158,7 +160,8 @@ class TestIncidentGenerator(unittest.TestCase):
             )
         
         # Check intervention effect
-        control_rate = np.mean(gen.cumulative_incidents[~intervention_mask] > 0)
+        control_rate = np.mean(
+            gen.cumulative_incidents[~intervention_mask] > 0)
         treated_rate = np.mean(gen.cumulative_incidents[intervention_mask] > 0)
         
         # Treated should have lower rate

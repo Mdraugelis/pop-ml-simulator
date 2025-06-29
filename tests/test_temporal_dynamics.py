@@ -56,7 +56,8 @@ class TestAR1Process(unittest.TestCase):
     
     def test_simulate_ar1_custom_bounds(self):
         """Test with custom bounds."""
-        values = simulate_ar1_process(100, 0.9, 0.1, bounds=(0.8, 1.2), random_seed=42)
+        values = simulate_ar1_process(
+            100, 0.9, 0.1, bounds=(0.8, 1.2), random_seed=42)
         
         self.assertTrue(np.all(values >= 0.8))
         self.assertTrue(np.all(values <= 1.2))
@@ -96,7 +97,8 @@ class TestTemporalRiskSimulator(unittest.TestCase):
         self.assertEqual(sim.bounds, (0.5, 2.0))
         
         # Check initial state
-        np.testing.assert_array_equal(sim.current_modifiers, np.ones(self.n_patients))
+        np.testing.assert_array_equal(
+            sim.current_modifiers, np.ones(self.n_patients))
         self.assertEqual(len(sim.modifier_history), 1)
         self.assertEqual(len(sim.risk_history), 1)
     
@@ -237,7 +239,8 @@ class TestEnhancedTemporalRiskSimulator(unittest.TestCase):
         sim = EnhancedTemporalRiskSimulator(self.base_risks)
         
         # Add a shock
-        sim.add_shock(time_step=5, magnitude=2.0, duration=3, affected_fraction=0.5)
+        sim.add_shock(
+            time_step=5, magnitude=2.0, duration=3, affected_fraction=0.5)
         
         # Before shock
         sim.time_step = 4
@@ -264,7 +267,8 @@ class TestEnhancedTemporalRiskSimulator(unittest.TestCase):
         )
         
         # Add a shock
-        sim.add_shock(time_step=1, magnitude=1.5, duration=2, affected_fraction=0.5)
+        sim.add_shock(
+            time_step=1, magnitude=1.5, duration=2, affected_fraction=0.5)
         
         # Take a step during the shock
         sim.step()
@@ -278,7 +282,9 @@ class TestEnhancedTemporalRiskSimulator(unittest.TestCase):
         
         # Some patients should have higher modifiers due to shock
         affected = sim.external_shocks[0]['affected_patients']
-        self.assertTrue(np.any(sim.current_modifiers[affected] > sim.current_modifiers[~affected]))
+        self.assertTrue(np.any(
+            sim.current_modifiers[affected] > sim.current_modifiers[~affected]
+        ))
 
 
 if __name__ == '__main__':
