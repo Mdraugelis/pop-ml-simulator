@@ -8,6 +8,7 @@ A healthcare simulation framework for modeling patient populations, risk distrib
 - AR(1) processes for temporal risk dynamics
 - Hazard functions and survival analysis
 - Competing risks and censoring models
+- ML prediction simulation with controlled performance
 
 ## Key Commands
 ```bash
@@ -31,17 +32,20 @@ src/pop_ml_simulator/
 ├── risk_distribution.py    # Beta distribution risk modeling
 ├── temporal_dynamics.py    # AR(1) temporal risk evolution
 ├── hazard_modeling.py      # Survival analysis & competing risks
+├── ml_simulation.py        # ML prediction simulation
 └── __init__.py
 
 notebooks/
 ├── 01_risk_distribution_exploration.ipynb
 ├── 02_temporal_risk_dynamics.ipynb
-└── 03_hazard_modeling.ipynb
+├── 03_hazard_modeling.ipynb
+└── 04_intervention_ml_simulation.ipynb
 
 tests/
 ├── test_risk_distribution.py
 ├── test_temporal_dynamics.py
 ├── test_hazard_modeling.py
+├── test_ml_simulation.py
 ├── test_notebooks.py
 └── run_tests.py            # Test runner with coverage
 ```
@@ -61,6 +65,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.getcwd()), 'src'))
 2. **RuntimeWarning for log(0)**: Clip values and add warnings for edge cases
 3. **GitHub Actions import errors**: Update `tests/run_tests.py` to add src to path
 4. **Missing dependencies**: Check `requirements.txt` includes all notebook dependencies
+5. **ML performance targets not met**: Increase n_iterations in optimize_noise_parameters()
+6. **Poor calibration**: Check Hosmer-Lemeshow p-value, adjust noise parameters
 
 ### Code Style
 - Follow PEP8 conventions
@@ -85,6 +91,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.getcwd()), 'src'))
 - Consolidated dependencies into single `requirements.txt`
 - Made logging optional rather than mandatory
 - Added comprehensive notebook testing to CI/CD
+- Implemented ML simulation framework (Issue #19) with controlled performance
 
 ## Environment
 - Python: 3.13.5
