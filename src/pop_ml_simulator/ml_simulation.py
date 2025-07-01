@@ -571,7 +571,7 @@ def analyze_risk_stratified_performance(
             # Calculate optimal threshold for this subset
             if np.sum(subset_true) > 0:  # Has positive cases
                 best_threshold = 0.5
-                best_f1 = 0
+                best_f1 = 0.0
 
                 for thresh in np.linspace(0.1, 0.9, 20):
                     binary = (subset_preds >= thresh).astype(int)
