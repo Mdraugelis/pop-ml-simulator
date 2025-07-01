@@ -15,6 +15,15 @@ from .hazard_modeling import (
     IncidentGenerator,
     CompetingRiskIncidentGenerator
 )
+from .ml_simulation import (
+    MLPredictionSimulator,
+    calculate_theoretical_performance_bounds,
+    hosmer_lemeshow_test,
+    evaluate_threshold_based,
+    evaluate_topk,
+    optimize_alert_threshold,
+    analyze_risk_stratified_performance
+)
 
 __all__: List[str] = [
     "add",
@@ -30,5 +39,13 @@ __all__: List[str] = [
     "hazard_to_timestep_probability",
     "IncidentGenerator",
     "CompetingRiskIncidentGenerator",
+    # ML simulation functions and classes
+    "MLPredictionSimulator",
+    "calculate_theoretical_performance_bounds",
+    "hosmer_lemeshow_test",
+    "evaluate_threshold_based",
+    "evaluate_topk",
+    "optimize_alert_threshold",
+    "analyze_risk_stratified_performance",
 ]
 __version__ = "0.1.0"
