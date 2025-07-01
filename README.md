@@ -274,10 +274,13 @@ predictions = calibration_fn(
 
 Comprehensive tutorials and examples:
 
+- **[00_basic_usage_example.ipynb](notebooks/00_basic_usage_example.ipynb)**: Complete end-to-end example showing all core features
 - **[01_risk_distribution_exploration.ipynb](notebooks/01_risk_distribution_exploration.ipynb)**: Population risk modeling
 - **[02_temporal_risk_dynamics.ipynb](notebooks/02_temporal_risk_dynamics.ipynb)**: Time-varying risk simulation  
 - **[03_hazard_modeling.ipynb](notebooks/03_hazard_modeling.ipynb)**: Survival analysis and competing risks
 - **[04_intervention_ml_simulation.ipynb](notebooks/04_intervention_ml_simulation.ipynb)**: ML prediction and intervention effects
+
+**Start with `00_basic_usage_example.ipynb`** for a comprehensive walkthrough of the framework's capabilities.
 
 ## 🔬 Causal Inference Applications
 
