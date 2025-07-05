@@ -190,11 +190,11 @@ class TemporalRiskSimulator:
 
 
 class EnhancedTemporalRiskSimulator(TemporalRiskSimulator):
-    """
-    Extended temporal risk simulator with seasonal effects and external shocks.
+    """Extended temporal risk simulator with seasonal effects and shocks.
 
-    Adds seasonal patterns and the ability to model external shocks
-    (e.g., pandemics, flu seasons) on top of the base AR(1) process.
+    This version enforces strict bounds on temporal modifiers and overall
+    probability to maintain population calibration and clinical
+    interpretability.
 
     Parameters
     ----------
@@ -204,8 +204,10 @@ class EnhancedTemporalRiskSimulator(TemporalRiskSimulator):
         AR(1) persistence parameter
     sigma : float, default=0.1
         Noise standard deviation
-    bounds : tuple, default=(0.5, 2.0)
+    temporal_bounds : tuple, default=(0.2, 2.5)
         (min, max) bounds for temporal modifier
+    max_risk_threshold : float, default=0.95
+        Absolute maximum risk allowed
     seasonal_amplitude : float, default=0.2
         Amplitude of seasonal variation (0 = no seasonality)
     seasonal_period : int, default=52
@@ -217,16 +219,25 @@ class EnhancedTemporalRiskSimulator(TemporalRiskSimulator):
         base_risks: np.ndarray,
         rho: float = 0.9,
         sigma: float = 0.1,
-        bounds: Tuple[float, float] = (0.5, 2.0),
+        temporal_bounds: Tuple[float, float] = (0.2, 2.5),
+        max_risk_threshold: float = 0.95,
         seasonal_amplitude: float = 0.2,
         seasonal_period: int = 52
     ):
-        """Initialize enhanced temporal risk simulator."""
-        super().__init__(base_risks, rho, sigma, bounds)
+        """Initialize enhanced temporal risk simulator with bounds."""
+        super().__init__(base_risks, rho, sigma, temporal_bounds)
+        self.temporal_bounds = temporal_bounds
+        self.max_risk_threshold = max_risk_threshold
         self.seasonal_amplitude = seasonal_amplitude
         self.seasonal_period = seasonal_period
         self.time_step = 0
         self.external_shocks: List[Dict] = []
+        self.target_population_rate = float(np.mean(base_risks))
+
+    @property
+    def temporal_modifiers(self) -> np.ndarray:
+        """Expose current modifiers for backward compatibility."""
+        return self.current_modifiers
 
     def add_shock(
         self,
@@ -254,6 +265,14 @@ class EnhancedTemporalRiskSimulator(TemporalRiskSimulator):
         """
         if random_seed is not None:
             np.random.seed(random_seed)
+
+        if magnitude > self.temporal_bounds[1]:
+            raise ValueError(
+                f"Shock magnitude {magnitude} exceeds "
+                f"temporal bounds {self.temporal_bounds[1]}"
+            )
+        if magnitude < 0.1:
+            raise ValueError(f"Shock magnitude {magnitude} too small")
 
         self.external_shocks.append({
             'time': time_step,
@@ -300,29 +319,254 @@ class EnhancedTemporalRiskSimulator(TemporalRiskSimulator):
 
         return shock_modifier
 
-    def step(self) -> None:
-        """
-        Advance one time step with seasonal and shock effects.
+    def step(self) -> np.ndarray:  # type: ignore[override]
+        """Advance one time step with bounded temporal evolution."""
 
-        Applies standard AR(1) update, then multiplies by seasonal
-        and shock modifiers.
-        """
-        # Standard AR(1) update
-        super().step()
+        # Get seasonal and shock effects
+        seasonal_modifier = self.get_seasonal_modifier()
+        shock_modifiers = self.get_shock_modifier()
 
-        # Apply seasonal modifier
-        seasonal_mod = self.get_seasonal_modifier()
-        self.current_modifiers *= seasonal_mod
+        # Generate AR(1) evolution around the seasonal baseline
+        # The AR(1) process evolves around seasonal_modifier instead of 1.0
+        noise = np.random.normal(0, self.sigma, self.n_patients)
+        ar1_modifiers = (self.rho * self.current_modifiers +
+                         (1 - self.rho) * seasonal_modifier + noise)
 
-        # Apply shock modifier
-        shock_mod = self.get_shock_modifier()
-        self.current_modifiers *= shock_mod
+        # Apply shock effects multiplicatively
+        self.current_modifiers = ar1_modifiers * shock_modifiers
 
-        # Re-apply bounds
-        self.current_modifiers = np.clip(self.current_modifiers,
-                                         self.bounds[0], self.bounds[1])
+        # Apply temporal bounds to modifiers
+        self.current_modifiers = np.clip(
+            self.current_modifiers,
+            self.temporal_bounds[0],
+            self.temporal_bounds[1]
+        )
 
-        # Update risk history with new modifiers
-        self.risk_history[-1] = self.base_risks * self.current_modifiers
+        # Calculate risks and apply risk threshold
+        temporal_risks = self.base_risks * self.current_modifiers
+        temporal_risks = np.clip(temporal_risks, 0.0, self.max_risk_threshold)
 
+        # Preserve population rate while respecting bounds
+        temporal_risks = self._preserve_population_rate(temporal_risks)
+
+        # Validate final risks
+        self._validate_temporal_risks(temporal_risks)
+
+        # Store history
+        self.modifier_history.append(self.current_modifiers.copy())
+        self.risk_history.append(temporal_risks.copy())
         self.time_step += 1
+
+        return temporal_risks
+
+    def _preserve_population_rate(
+        self, temporal_risks: np.ndarray
+    ) -> np.ndarray:
+        """Rescale risks to preserve the original population incident rate.
+
+        Only applies rescaling if drift exceeds seasonal variation bounds.
+        """
+        current_mean = float(np.mean(temporal_risks))
+        if current_mean > 0:
+            # Allow drift up to seasonal amplitude plus some tolerance
+            allowed_drift = self.seasonal_amplitude + 0.05
+            rate_ratio = current_mean / self.target_population_rate
+
+            # Only rescale if drift is beyond seasonal variation
+            if (rate_ratio > (1 + allowed_drift) or
+                    rate_ratio < (1 - allowed_drift)):
+                scaling_factor = self.target_population_rate / current_mean
+                temporal_risks = temporal_risks * scaling_factor
+                temporal_risks = np.clip(
+                    temporal_risks,
+                    0.0,
+                    self.max_risk_threshold,
+                )
+        return temporal_risks
+
+    def _validate_temporal_risks(self, temporal_risks: np.ndarray) -> None:
+        """Validate temporal risk constraints."""
+        max_risk = float(np.max(temporal_risks))
+        min_risk = float(np.min(temporal_risks))
+        if max_risk > 1.0:
+            raise ValueError(f"Temporal risk exceeded 1.0: {max_risk:.4f}")
+        if min_risk < 0.0:
+            raise ValueError(f"Negative temporal risk: {min_risk:.4f}")
+
+        # Allow drift up to seasonal amplitude plus tolerance
+        current_pop_rate = float(np.mean(temporal_risks))
+        rate_ratio = current_pop_rate / self.target_population_rate
+        allowed_drift = self.seasonal_amplitude + 0.05
+
+        if (rate_ratio > (1 + allowed_drift) or
+                rate_ratio < (1 - allowed_drift)):
+            raise ValueError(
+                f"Population rate drift exceeds seasonal bounds: "
+                f"current={current_pop_rate:.4f}, "
+                f"target={self.target_population_rate:.4f}, "
+                f"ratio={rate_ratio:.4f}, "
+                f"allowed_drift={allowed_drift:.4f}"
+            )
+
+    def get_current_risks(self) -> np.ndarray:
+        """Return current temporal risks with constraints applied."""
+        # Return the most recent risks from history if available
+        if self.risk_history:
+            return self.risk_history[-1].copy()
+
+        # Otherwise calculate from current modifiers
+        temporal_risks = self.base_risks * self.current_modifiers
+        temporal_risks = np.clip(temporal_risks, 0.0, self.max_risk_threshold)
+        return self._preserve_population_rate(temporal_risks)
+
+    def get_risk_matrix(self) -> np.ndarray:
+        """
+        Get the complete temporal risk matrix.
+
+        Returns
+        -------
+        risk_matrix : np.ndarray
+            Shape (n_patients, n_timesteps) array of temporal risks
+        """
+        if not self.risk_history:
+            raise ValueError("No simulation history available. "
+                             "Run simulation first.")
+
+        return np.array(self.risk_history).T
+
+    def get_patient_trajectory(self, patient_id: int) -> np.ndarray:
+        """
+        Get risk trajectory for a specific patient.
+
+        Parameters
+        ----------
+        patient_id : int
+            Index of the patient (0 to n_patients-1)
+
+        Returns
+        -------
+        trajectory : np.ndarray
+            Risk values over time for the specified patient
+        """
+        if patient_id < 0 or patient_id >= self.n_patients:
+            raise ValueError(
+                f"Patient ID {patient_id} out of range "
+                f"[0, {self.n_patients-1}]")
+
+        if not self.risk_history:
+            raise ValueError("No simulation history available. "
+                             "Run simulation first.")
+        return np.array([risks[patient_id] for risks in self.risk_history])
+
+    def get_timestep_risks(self, timestep: int) -> np.ndarray:
+        """
+        Get risk values for all patients at a specific timestep.
+
+        Parameters
+        ----------
+        timestep : int
+            Timestep index (0 to n_timesteps-1)
+
+        Returns
+        -------
+        risks : np.ndarray
+            Risk values for all patients at the specified timestep
+        """
+        if not self.risk_history:
+            raise ValueError("No simulation history available. "
+                             "Run simulation first.")
+
+        if timestep < 0 or timestep >= len(self.risk_history):
+            raise ValueError(
+                f"Timestep {timestep} out of range "
+                f"[0, {len(self.risk_history)-1}]")
+        return self.risk_history[timestep].copy()
+
+
+def build_temporal_risk_matrix(
+    base_risks: np.ndarray,
+    n_timesteps: int,
+    rho: float = 0.9,
+    sigma: float = 0.1,
+    temporal_bounds: Tuple[float, float] = (0.2, 2.5),
+    max_risk_threshold: float = 0.95,
+    seasonal_amplitude: float = 0.2,
+    seasonal_period: int = 52,
+    random_seed: Optional[int] = None
+) -> np.ndarray:
+    """
+    Build a temporal risk matrix for all patients over time.
+
+    This function creates a complete (n_patients, n_timesteps) matrix of
+    time-varying risks using the Enhanced Temporal Risk Simulator with
+    AR(1) dynamics, seasonal effects, and safety bounds.
+
+    Parameters
+    ----------
+    base_risks : np.ndarray
+        Base annual risk for each patient, shape (n_patients,)
+    n_timesteps : int
+        Number of timesteps to simulate
+    rho : float, default=0.9
+        AR(1) persistence parameter (0 < rho < 1)
+    sigma : float, default=0.1
+        Noise standard deviation for AR(1) process
+    temporal_bounds : tuple, default=(0.2, 2.5)
+        (min, max) bounds for temporal modifiers
+    max_risk_threshold : float, default=0.95
+        Absolute maximum risk allowed (clinical safety)
+    seasonal_amplitude : float, default=0.2
+        Amplitude of seasonal variation (0 = no seasonality)
+    seasonal_period : int, default=52
+        Period of seasonal cycle (e.g., 52 for weekly data with annual cycle)
+    random_seed : int, optional
+        Random seed for reproducibility
+
+    Returns
+    -------
+    risk_matrix : np.ndarray
+        Shape (n_patients, n_timesteps) matrix of temporal risks.
+        - risk_matrix[i, 0] == base_risks[i] (initial condition)
+        - All values in [0, 1] range
+        - Temporal autocorrelation > 0.8 for patient trajectories
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from pop_ml_simulator import assign_patient_risks
+    >>>
+    >>> # Create patient population
+    >>> n_patients = 1000
+    >>> base_risks = assign_patient_risks(n_patients, 0.1, random_seed=42)
+    >>>
+    >>> # Build temporal risk matrix
+    >>> risk_matrix = build_temporal_risk_matrix(
+    ...     base_risks, n_timesteps=52, random_seed=42
+    ... )
+    >>>
+    >>> print(f"Matrix shape: {risk_matrix.shape}")
+    >>> print(f"Initial risks match base: "
+    ...       f"{np.allclose(risk_matrix[:, 0], base_risks)}")
+    >>> print(f"All risks in [0,1]: "
+    ...       f"{np.all((risk_matrix >= 0) & (risk_matrix <= 1))}")
+    """
+    if random_seed is not None:
+        np.random.seed(random_seed)
+
+    # Create enhanced temporal risk simulator
+    simulator = EnhancedTemporalRiskSimulator(
+        base_risks=base_risks,
+        rho=rho,
+        sigma=sigma,
+        temporal_bounds=temporal_bounds,
+        max_risk_threshold=max_risk_threshold,
+        seasonal_amplitude=seasonal_amplitude,
+        seasonal_period=seasonal_period
+    )
+
+    # Simulate for n_timesteps (subtract 1 because we start with initial state)
+    if n_timesteps > 1:
+        simulator.simulate(n_timesteps - 1)
+
+    # Return the risk matrix
+    return simulator.get_risk_matrix()
