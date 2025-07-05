@@ -130,7 +130,6 @@ class TemporalRiskSimulator:
         self.modifier_history = [self.current_modifiers.copy()]
         self.risk_history = [self.base_risks * self.current_modifiers]
 
-    @log_call
     def step(self) -> None:
         """
         Advance one time step, updating all patient risk modifiers.
@@ -152,7 +151,6 @@ class TemporalRiskSimulator:
         self.modifier_history.append(self.current_modifiers.copy())
         self.risk_history.append(self.base_risks * self.current_modifiers)
 
-    @log_call
     def simulate(self, n_timesteps: int) -> None:
         """
         Simulate multiple time steps.
@@ -165,8 +163,6 @@ class TemporalRiskSimulator:
         for _ in range(n_timesteps):
             self.step()
 
-    @log_call
-    @log_call
     def get_current_risks(self) -> np.ndarray:
         """
         Get current time-varying risks for all patients.
@@ -178,7 +174,6 @@ class TemporalRiskSimulator:
         """
         return self.base_risks * self.current_modifiers
 
-    @log_call
     def get_histories(self) -> Tuple[np.ndarray, np.ndarray]:
         """
         Get full history as numpy arrays.
@@ -240,12 +235,10 @@ class EnhancedTemporalRiskSimulator(TemporalRiskSimulator):
         self.target_population_rate = float(np.mean(base_risks))
 
     @property
-    @log_call
     def temporal_modifiers(self) -> np.ndarray:
         """Expose current modifiers for backward compatibility."""
         return self.current_modifiers
 
-    @log_call
     def add_shock(
         self,
         time_step: int,
@@ -293,7 +286,6 @@ class EnhancedTemporalRiskSimulator(TemporalRiskSimulator):
             )
         })
 
-    @log_call
     def get_seasonal_modifier(self) -> float:
         """
         Calculate seasonal risk modifier.
@@ -308,7 +300,6 @@ class EnhancedTemporalRiskSimulator(TemporalRiskSimulator):
         phase = 2 * np.pi * self.time_step / self.seasonal_period
         return 1.0 + self.seasonal_amplitude * np.sin(phase + np.pi/2)
 
-    @log_call
     def get_shock_modifier(self) -> np.ndarray:
         """
         Calculate shock modifier for current time step.
@@ -328,48 +319,44 @@ class EnhancedTemporalRiskSimulator(TemporalRiskSimulator):
 
         return shock_modifier
 
-    @log_call
     def step(self) -> np.ndarray:  # type: ignore[override]
         """Advance one time step with bounded temporal evolution."""
 
-        seasonal_component = self.get_seasonal_modifier()
-        shock_component = self.get_shock_modifier()
+        # Generate AR(1) base evolution
         noise = np.random.normal(0, self.sigma, self.n_patients)
+        ar1_modifiers = (self.rho * self.current_modifiers +
+                         (1 - self.rho) * 1.0 + noise)
 
-        self.current_modifiers = (
-            self.rho * self.current_modifiers
-            + (1 - self.rho)
-            + seasonal_component
-            + shock_component
-            + noise
-        )
+        # Apply multiplicative seasonal and shock effects
+        seasonal_modifier = self.get_seasonal_modifier()
+        shock_modifiers = self.get_shock_modifier()
 
+        # Combine all effects multiplicatively
+        self.current_modifiers = (ar1_modifiers * seasonal_modifier *
+                                  shock_modifiers)
+
+        # Apply temporal bounds to modifiers
         self.current_modifiers = np.clip(
             self.current_modifiers,
             self.temporal_bounds[0],
-            self.temporal_bounds[1],
+            self.temporal_bounds[1]
         )
 
+        # Calculate risks and apply risk threshold
         temporal_risks = self.base_risks * self.current_modifiers
-        temporal_risks = np.clip(
-            temporal_risks,
-            0.0,
-            self.max_risk_threshold,
-        )
-        temporal_risks = self._preserve_population_rate(
-            temporal_risks
-        )
+        temporal_risks = np.clip(temporal_risks, 0.0, self.max_risk_threshold)
+
+        # Preserve population rate while respecting bounds
+        temporal_risks = self._preserve_population_rate(temporal_risks)
+
+        # Validate final risks
         self._validate_temporal_risks(temporal_risks)
 
-        self.current_modifiers = np.clip(
-            temporal_risks / self.base_risks,
-            self.temporal_bounds[0],
-            self.temporal_bounds[1],
-        )
-
+        # Store history
         self.modifier_history.append(self.current_modifiers.copy())
         self.risk_history.append(temporal_risks.copy())
         self.time_step += 1
+
         return temporal_risks
 
     def _preserve_population_rate(
@@ -403,16 +390,13 @@ class EnhancedTemporalRiskSimulator(TemporalRiskSimulator):
                 f"diff={rate_diff:.4f}"
             )
 
-    @log_call
     def get_current_risks(self) -> np.ndarray:
         """Return current temporal risks with constraints applied."""
+        # Return the most recent risks from history if available
+        if self.risk_history:
+            return self.risk_history[-1].copy()
+
+        # Otherwise calculate from current modifiers
         temporal_risks = self.base_risks * self.current_modifiers
-        temporal_risks = np.clip(
-            temporal_risks,
-            0.0,
-            self.max_risk_threshold,
-        )
-        temporal_risks = self._preserve_population_rate(
-            temporal_risks
-        )
-        return temporal_risks
+        temporal_risks = np.clip(temporal_risks, 0.0, self.max_risk_threshold)
+        return self._preserve_population_rate(temporal_risks)

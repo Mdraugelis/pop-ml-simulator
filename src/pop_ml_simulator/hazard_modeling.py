@@ -120,7 +120,6 @@ class IncidentGenerator:
         self.incident_history: List[np.ndarray] = []
         self.cumulative_incidents: Optional[np.ndarray] = None
 
-    @log_call
     def generate_incidents(
         self,
         annual_risks: np.ndarray,
@@ -185,7 +184,6 @@ class IncidentGenerator:
 
         return incidents
 
-    @log_call
     def get_cumulative_incidence(self) -> float:
         """
         Get cumulative incidence rate.
@@ -199,7 +197,6 @@ class IncidentGenerator:
             return 0.0
         return float(np.mean(self.cumulative_incidents > 0))
 
-    @log_call
     def reset(self) -> None:
         """Reset incident tracking to initial state."""
         self.incident_history = []
@@ -247,7 +244,6 @@ class CompetingRiskIncidentGenerator(IncidentGenerator):
         }
         self.censored: Optional[np.ndarray] = None
 
-    @log_call
     def generate_competing_incidents(
         self,
         annual_risks_dict: Dict[str, np.ndarray],
@@ -359,7 +355,6 @@ class CompetingRiskIncidentGenerator(IncidentGenerator):
 
         return events_dict
 
-    @log_call
     def get_cumulative_incidence_competing(self) -> Dict[str, float]:
         """
         Get cumulative incidence for each event type accounting for
