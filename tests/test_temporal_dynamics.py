@@ -346,7 +346,7 @@ class TestEnhancedTemporalRiskSimulator(unittest.TestCase):
             msg=f"Average risk {avg_risk:.4f} should be close to "
                 f"target {target_risk:.4f}")
 
-
+  
 class TestTemporalRiskMatrix(unittest.TestCase):
     """Test cases for temporal risk matrix functionality."""
 

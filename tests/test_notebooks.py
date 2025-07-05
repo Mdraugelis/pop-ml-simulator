@@ -72,7 +72,8 @@ def test_notebooks_exist():
     expected_notebooks = [
         '01_risk_distribution_exploration.ipynb',
         '02_temporal_risk_dynamics.ipynb',
-        '03_hazard_modeling.ipynb'
+        '03_hazard_modeling.ipynb',
+        '06_temporal_risk_bounds_deep_dive.ipynb'
     ]
 
     found_notebooks = [os.path.basename(path) for path in notebook_paths]

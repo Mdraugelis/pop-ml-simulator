@@ -1,7 +1,7 @@
 # Guidelines for AI Agents
 
 This repository contains Python code and Jupyter notebooks for simulating and evaluating healthcare interventions. Use this guide when contributing automated changes.
-
+Always reference the design document to guide architecture, function and requirements `docs/Healthcare_Sim_Design.md/`.
 ## Project Structure
 - `src/` – Core Python modules for the project, simulations and analysis.
 - `notebooks/` – Jupyter notebooks used for data exploration and method experimentation. They may also contain embedded tests via `ipytest`.
