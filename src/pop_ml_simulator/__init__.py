@@ -7,7 +7,8 @@ from .risk_distribution import assign_patient_risks, simulate_annual_incidents
 from .temporal_dynamics import (
     TemporalRiskSimulator,
     EnhancedTemporalRiskSimulator,
-    simulate_ar1_process
+    simulate_ar1_process,
+    build_temporal_risk_matrix
 )
 from .hazard_modeling import (
     annual_risk_to_hazard,
@@ -34,6 +35,7 @@ __all__: List[str] = [
     "TemporalRiskSimulator",
     "EnhancedTemporalRiskSimulator",
     "simulate_ar1_process",
+    "build_temporal_risk_matrix",
     # Hazard modeling functions and classes
     "annual_risk_to_hazard",
     "hazard_to_timestep_probability",
