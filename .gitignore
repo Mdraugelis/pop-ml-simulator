@@ -28,6 +28,7 @@ multirun/
 .env
 *.log
 .coverage
+.coverage.*
 htmlcov/
 .pytest_cache/
 *.parquet
