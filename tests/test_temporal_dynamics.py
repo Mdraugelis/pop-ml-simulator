@@ -7,7 +7,8 @@ import numpy as np
 from pop_ml_simulator.temporal_dynamics import (
     simulate_ar1_process,
     TemporalRiskSimulator,
-    EnhancedTemporalRiskSimulator
+    EnhancedTemporalRiskSimulator,
+    build_temporal_risk_matrix
 )
 
 
@@ -344,6 +345,226 @@ class TestEnhancedTemporalRiskSimulator(unittest.TestCase):
             avg_risk, target_risk, delta=0.05,
             msg=f"Average risk {avg_risk:.4f} should be close to "
                 f"target {target_risk:.4f}")
+
+
+class TestTemporalRiskMatrix(unittest.TestCase):
+    """Test cases for temporal risk matrix functionality."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        np.random.seed(42)
+        self.n_patients = 100
+        self.n_timesteps = 20
+        self.base_risks = np.random.uniform(0.05, 0.2, self.n_patients)
+
+    def test_temporal_risk_matrix_construction(self):
+        """Test basic temporal risk matrix construction."""
+        risk_matrix = build_temporal_risk_matrix(
+            self.base_risks,
+            n_timesteps=self.n_timesteps,
+            random_seed=42
+        )
+
+        # Check shape
+        self.assertEqual(risk_matrix.shape,
+                         (self.n_patients, self.n_timesteps))
+
+        # Check that matrix is not empty
+        self.assertGreater(np.count_nonzero(risk_matrix), 0)
+
+        # Check that all values are finite
+        self.assertTrue(np.all(np.isfinite(risk_matrix)))
+
+    def test_temporal_risk_bounds(self):
+        """Test that all risks remain in [0,1] range."""
+        risk_matrix = build_temporal_risk_matrix(
+            self.base_risks,
+            n_timesteps=self.n_timesteps,
+            max_risk_threshold=0.95,
+            random_seed=42
+        )
+
+        # Check bounds
+        self.assertTrue(np.all(risk_matrix >= 0.0),
+                        f"Found negative risks: min={np.min(risk_matrix)}")
+        self.assertTrue(np.all(risk_matrix <= 1.0),
+                        f"Found risks > 1.0: max={np.max(risk_matrix)}")
+
+        # Check that no risk exceeds the threshold
+        self.assertTrue(np.all(risk_matrix <= 0.95),
+                        f"Found risks > threshold: max={np.max(risk_matrix)}")
+
+    def test_temporal_risk_initial_conditions(self):
+        """Test that initial timestep matches base risks exactly."""
+        risk_matrix = build_temporal_risk_matrix(
+            self.base_risks,
+            n_timesteps=self.n_timesteps,
+            random_seed=42
+        )
+
+        # Check initial conditions
+        np.testing.assert_array_almost_equal(
+            risk_matrix[:, 0], self.base_risks,
+            decimal=10,
+            err_msg="Initial timestep should match base risks exactly"
+        )
+
+    def test_temporal_autocorrelation(self):
+        """Test temporal autocorrelation > 0.8 for patient trajectories."""
+        risk_matrix = build_temporal_risk_matrix(
+            self.base_risks,
+            n_timesteps=52,  # Need more timesteps for reliable correlation
+            rho=0.9,
+            random_seed=42
+        )
+
+        autocorrelations = []
+        # Sample of patients
+        for patient_idx in range(min(20, self.n_patients)):
+            trajectory = risk_matrix[patient_idx, :]
+            if len(trajectory) > 1:
+                # Calculate lag-1 autocorrelation
+                corr = np.corrcoef(trajectory[:-1], trajectory[1:])[0, 1]
+                if not np.isnan(corr):
+                    autocorrelations.append(corr)
+
+        # Check that average autocorrelation is > 0.8
+        avg_autocorr = np.mean(autocorrelations)
+        self.assertGreater(
+            avg_autocorr, 0.8,
+            f"Average autocorrelation {avg_autocorr:.3f} should be > 0.8")
+
+    def test_matrix_access_methods(self):
+        """Test the matrix access methods on EnhancedTemporalRiskSimulator."""
+        np.random.seed(42)  # Set seed before creating simulator
+        simulator = EnhancedTemporalRiskSimulator(
+            self.base_risks,
+            rho=0.9,
+            sigma=0.1
+        )
+
+        # Run simulation
+        simulator.simulate(self.n_timesteps - 1)
+
+        # Test get_risk_matrix
+        risk_matrix = simulator.get_risk_matrix()
+        self.assertEqual(risk_matrix.shape,
+                         (self.n_patients, self.n_timesteps))
+
+        # Test get_patient_trajectory
+        patient_id = 5
+        trajectory = simulator.get_patient_trajectory(patient_id)
+        self.assertEqual(len(trajectory), self.n_timesteps)
+        np.testing.assert_array_equal(trajectory, risk_matrix[patient_id, :])
+
+        # Test get_timestep_risks
+        timestep = 10
+        timestep_risks = simulator.get_timestep_risks(timestep)
+        self.assertEqual(len(timestep_risks), self.n_patients)
+        np.testing.assert_array_equal(timestep_risks, risk_matrix[:, timestep])
+
+    def test_matrix_access_error_handling(self):
+        """Test error handling in matrix access methods."""
+        simulator = EnhancedTemporalRiskSimulator(self.base_risks)
+
+        # Note: The simulator starts with initial state, so these should work
+        # Just verify they don't raise errors for valid initial state
+        risk_matrix = simulator.get_risk_matrix()
+        self.assertEqual(risk_matrix.shape[0], self.n_patients)
+        self.assertEqual(risk_matrix.shape[1], 1)  # Initial state only
+
+        trajectory = simulator.get_patient_trajectory(0)
+        self.assertEqual(len(trajectory), 1)
+
+        timestep_risks = simulator.get_timestep_risks(0)
+        self.assertEqual(len(timestep_risks), self.n_patients)
+
+        # Run simulation
+        simulator.simulate(self.n_timesteps - 1)
+
+        # Test out-of-bounds patient ID
+        with self.assertRaises(ValueError):
+            simulator.get_patient_trajectory(-1)
+
+        with self.assertRaises(ValueError):
+            simulator.get_patient_trajectory(self.n_patients)
+
+        # Test out-of-bounds timestep
+        with self.assertRaises(ValueError):
+            simulator.get_timestep_risks(-1)
+
+        with self.assertRaises(ValueError):
+            simulator.get_timestep_risks(self.n_timesteps)
+
+    def test_temporal_risk_matrix_performance(self):
+        """Test performance for large matrices."""
+        import time
+
+        # Test with smaller matrix for CI (1000x104 might be too slow for CI)
+        large_base_risks = np.random.uniform(0.05, 0.2, 200)
+        large_timesteps = 52
+
+        start_time = time.time()
+        risk_matrix = build_temporal_risk_matrix(
+            large_base_risks,
+            n_timesteps=large_timesteps,
+            random_seed=42
+        )
+        elapsed_time = time.time() - start_time
+
+        # Check that it completed reasonably quickly
+        self.assertLess(
+            elapsed_time, 2.0,
+            f"Matrix construction took {elapsed_time:.2f}s, should be < 2s")
+
+        # Check results are valid
+        self.assertEqual(risk_matrix.shape,
+                         (len(large_base_risks), large_timesteps))
+        self.assertTrue(np.all((risk_matrix >= 0) & (risk_matrix <= 1)))
+
+    def test_matrix_reproducibility(self):
+        """Test that matrix construction is reproducible with same seed."""
+        matrix1 = build_temporal_risk_matrix(
+            self.base_risks,
+            n_timesteps=self.n_timesteps,
+            random_seed=123
+        )
+
+        matrix2 = build_temporal_risk_matrix(
+            self.base_risks,
+            n_timesteps=self.n_timesteps,
+            random_seed=123
+        )
+
+        np.testing.assert_array_equal(
+            matrix1, matrix2,
+            err_msg="Matrices should be identical with same random seed"
+        )
+
+    def test_matrix_seasonal_effects(self):
+        """Test that seasonal effects are captured in the matrix."""
+        # Build matrix with strong seasonal effects
+        risk_matrix = build_temporal_risk_matrix(
+            self.base_risks,
+            n_timesteps=52,  # Full year
+            seasonal_amplitude=0.3,
+            seasonal_period=52,
+            rho=0.95,  # High persistence to see seasonal pattern
+            sigma=0.01,  # Low noise
+            random_seed=42
+        )
+
+        # Calculate population mean over time
+        population_means = np.mean(risk_matrix, axis=0)
+
+        # Check that there's variation (indicating seasonal effects)
+        variation = np.max(population_means) - np.min(population_means)
+        self.assertGreater(variation, 0.01,
+                           "Should see seasonal variation in population means")
+
+        # Check that it's bounded
+        self.assertLess(variation, 0.1,
+                        "Seasonal variation should be reasonable")
 
 
 if __name__ == '__main__':
