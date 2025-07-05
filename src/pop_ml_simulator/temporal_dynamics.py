@@ -322,18 +322,18 @@ class EnhancedTemporalRiskSimulator(TemporalRiskSimulator):
     def step(self) -> np.ndarray:  # type: ignore[override]
         """Advance one time step with bounded temporal evolution."""
 
-        # Generate AR(1) base evolution
-        noise = np.random.normal(0, self.sigma, self.n_patients)
-        ar1_modifiers = (self.rho * self.current_modifiers +
-                         (1 - self.rho) * 1.0 + noise)
-
-        # Apply multiplicative seasonal and shock effects
+        # Get seasonal and shock effects
         seasonal_modifier = self.get_seasonal_modifier()
         shock_modifiers = self.get_shock_modifier()
+        
+        # Generate AR(1) evolution around the seasonal baseline
+        # The AR(1) process evolves around seasonal_modifier instead of 1.0
+        noise = np.random.normal(0, self.sigma, self.n_patients)
+        ar1_modifiers = (self.rho * self.current_modifiers +
+                         (1 - self.rho) * seasonal_modifier + noise)
 
-        # Combine all effects multiplicatively
-        self.current_modifiers = (ar1_modifiers * seasonal_modifier *
-                                  shock_modifiers)
+        # Apply shock effects multiplicatively
+        self.current_modifiers = ar1_modifiers * shock_modifiers
 
         # Apply temporal bounds to modifiers
         self.current_modifiers = np.clip(
@@ -362,16 +362,25 @@ class EnhancedTemporalRiskSimulator(TemporalRiskSimulator):
     def _preserve_population_rate(
         self, temporal_risks: np.ndarray
     ) -> np.ndarray:
-        """Rescale risks to preserve the original population incident rate."""
+        """Rescale risks to preserve the original population incident rate.
+        
+        Only applies rescaling if drift exceeds seasonal variation bounds.
+        """
         current_mean = float(np.mean(temporal_risks))
         if current_mean > 0:
-            scaling_factor = self.target_population_rate / current_mean
-            temporal_risks = temporal_risks * scaling_factor
-            temporal_risks = np.clip(
-                temporal_risks,
-                0.0,
-                self.max_risk_threshold,
-            )
+            # Allow drift up to seasonal amplitude plus some tolerance
+            allowed_drift = self.seasonal_amplitude + 0.05
+            rate_ratio = current_mean / self.target_population_rate
+            
+            # Only rescale if drift is beyond seasonal variation
+            if rate_ratio > (1 + allowed_drift) or rate_ratio < (1 - allowed_drift):
+                scaling_factor = self.target_population_rate / current_mean
+                temporal_risks = temporal_risks * scaling_factor
+                temporal_risks = np.clip(
+                    temporal_risks,
+                    0.0,
+                    self.max_risk_threshold,
+                )
         return temporal_risks
 
     def _validate_temporal_risks(self, temporal_risks: np.ndarray) -> None:
@@ -382,12 +391,17 @@ class EnhancedTemporalRiskSimulator(TemporalRiskSimulator):
             raise ValueError(f"Temporal risk exceeded 1.0: {max_risk:.4f}")
         if min_risk < 0.0:
             raise ValueError(f"Negative temporal risk: {min_risk:.4f}")
+        
+        # Allow drift up to seasonal amplitude plus tolerance
         current_pop_rate = float(np.mean(temporal_risks))
-        rate_diff = abs(current_pop_rate - self.target_population_rate)
-        if rate_diff > 0.02:
+        rate_ratio = current_pop_rate / self.target_population_rate
+        allowed_drift = self.seasonal_amplitude + 0.05
+        
+        if rate_ratio > (1 + allowed_drift) or rate_ratio < (1 - allowed_drift):
             raise ValueError(
-                "Population rate drift exceeds tolerance: "
-                f"diff={rate_diff:.4f}"
+                f"Population rate drift exceeds seasonal bounds: "
+                f"current={current_pop_rate:.4f}, target={self.target_population_rate:.4f}, "
+                f"ratio={rate_ratio:.4f}, allowed_drift={allowed_drift:.4f}"
             )
 
     def get_current_risks(self) -> np.ndarray:

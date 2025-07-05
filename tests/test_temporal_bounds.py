@@ -21,9 +21,12 @@ class TestTemporalRiskBounds:
 
     def test_population_rate_preservation(self):
         target = np.mean(self.base_risks)
+        # Allow for seasonal variation (20% amplitude + 5% tolerance)
+        allowed_variation = self.simulator.seasonal_amplitude + 0.05
         for _ in range(20):
             risks = self.simulator.step()
-            assert abs(np.mean(risks) - target) <= 0.02
+            rate_ratio = np.mean(risks) / target
+            assert rate_ratio <= (1 + allowed_variation) and rate_ratio >= (1 - allowed_variation)
 
     def test_temporal_bounds_enforced(self):
         for _ in range(10):
