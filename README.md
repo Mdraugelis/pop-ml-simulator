@@ -71,9 +71,11 @@ base_risks = assign_patient_risks(
 
 # 2. Add temporal dynamics
 temporal_sim = EnhancedTemporalRiskSimulator(
-    base_risks, 
+    base_risks,
     rho=0.9,  # Persistence
     sigma=0.1,  # Volatility
+    temporal_bounds=(0.2, 2.5),
+    max_risk_threshold=0.95,
     seasonal_amplitude=0.2,
     seasonal_period=52  # Weekly cycles
 )
@@ -136,6 +138,8 @@ temporal_sim = EnhancedTemporalRiskSimulator(
     base_risks,
     rho=0.9,  # High persistence
     sigma=0.1,  # Moderate volatility
+    temporal_bounds=(0.2, 2.5),
+    max_risk_threshold=0.95,
     seasonal_amplitude=0.3,  # 30% seasonal variation
     seasonal_period=52  # Annual cycle
 )

@@ -285,6 +285,66 @@ class TestEnhancedTemporalRiskSimulator(unittest.TestCase):
             sim.current_modifiers[affected] > sim.current_modifiers[~affected]
         ))
 
+    def test_seasonal_effects_on_population_risk(self):
+        """Test that seasonal effects properly modulate population risk."""
+        # Create simulator with strong seasonal effects
+        sim = EnhancedTemporalRiskSimulator(
+            self.base_risks,
+            seasonal_amplitude=0.3,  # 30% seasonal variation
+            seasonal_period=52,
+            rho=0.95,  # High persistence to isolate seasonal effect
+            sigma=0.01  # Low noise to see clear pattern
+        )
+
+        # Track population risks over full seasonal cycle
+        population_risks = []
+        seasonal_modifiers = []
+
+        for _ in range(52):
+            sim.step()
+            risks = sim.get_current_risks()
+            population_risks.append(np.mean(risks))
+            seasonal_modifiers.append(sim.get_seasonal_modifier())
+
+        # Verify seasonal pattern exists
+        risk_array = np.array(population_risks)
+        modifier_array = np.array(seasonal_modifiers)
+
+        # Check that population risk varies
+        risk_variation = np.max(risk_array) - np.min(risk_array)
+        self.assertGreater(risk_variation, 0.01,
+                           "Population risk should show seasonal variation")
+
+        # Check correlation between seasonal modifier and population risk
+        # They should be positively correlated (but AR(1) process adds noise)
+        correlation = np.corrcoef(modifier_array[1:], risk_array[1:])[0, 1]
+        self.assertGreater(
+            correlation, 0.2,
+            f"Seasonal modifier and population risk should be "
+            f"correlated, got {correlation}")
+
+        # Check that risk shows clear seasonal pattern
+        # The AR(1) process can introduce lag, so we check for overall pattern
+        # rather than exact peak alignment
+        risk_fft = np.fft.fft(risk_array - np.mean(risk_array))
+        power_spectrum = np.abs(risk_fft) ** 2
+
+        # The seasonal frequency should have significant power
+        # (excluding DC component at index 0)
+        seasonal_freq_idx = 1  # For annual cycle in 52 weeks
+        self.assertGreater(
+            power_spectrum[seasonal_freq_idx],
+            np.median(power_spectrum[2:26]),  # Compare to other frequencies
+            "Seasonal frequency should have significant power")
+
+        # Verify average stays close to target
+        avg_risk = np.mean(risk_array)
+        target_risk = np.mean(self.base_risks)
+        self.assertAlmostEqual(
+            avg_risk, target_risk, delta=0.05,
+            msg=f"Average risk {avg_risk:.4f} should be close to "
+                f"target {target_risk:.4f}")
+
 
 if __name__ == '__main__':
     unittest.main()
