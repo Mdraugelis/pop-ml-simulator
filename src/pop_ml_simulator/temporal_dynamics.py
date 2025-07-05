@@ -325,7 +325,7 @@ class EnhancedTemporalRiskSimulator(TemporalRiskSimulator):
         # Get seasonal and shock effects
         seasonal_modifier = self.get_seasonal_modifier()
         shock_modifiers = self.get_shock_modifier()
-        
+
         # Generate AR(1) evolution around the seasonal baseline
         # The AR(1) process evolves around seasonal_modifier instead of 1.0
         noise = np.random.normal(0, self.sigma, self.n_patients)
@@ -363,7 +363,7 @@ class EnhancedTemporalRiskSimulator(TemporalRiskSimulator):
         self, temporal_risks: np.ndarray
     ) -> np.ndarray:
         """Rescale risks to preserve the original population incident rate.
-        
+
         Only applies rescaling if drift exceeds seasonal variation bounds.
         """
         current_mean = float(np.mean(temporal_risks))
@@ -371,9 +371,10 @@ class EnhancedTemporalRiskSimulator(TemporalRiskSimulator):
             # Allow drift up to seasonal amplitude plus some tolerance
             allowed_drift = self.seasonal_amplitude + 0.05
             rate_ratio = current_mean / self.target_population_rate
-            
+
             # Only rescale if drift is beyond seasonal variation
-            if rate_ratio > (1 + allowed_drift) or rate_ratio < (1 - allowed_drift):
+            if (rate_ratio > (1 + allowed_drift) or
+                    rate_ratio < (1 - allowed_drift)):
                 scaling_factor = self.target_population_rate / current_mean
                 temporal_risks = temporal_risks * scaling_factor
                 temporal_risks = np.clip(
@@ -391,17 +392,20 @@ class EnhancedTemporalRiskSimulator(TemporalRiskSimulator):
             raise ValueError(f"Temporal risk exceeded 1.0: {max_risk:.4f}")
         if min_risk < 0.0:
             raise ValueError(f"Negative temporal risk: {min_risk:.4f}")
-        
+
         # Allow drift up to seasonal amplitude plus tolerance
         current_pop_rate = float(np.mean(temporal_risks))
         rate_ratio = current_pop_rate / self.target_population_rate
         allowed_drift = self.seasonal_amplitude + 0.05
-        
-        if rate_ratio > (1 + allowed_drift) or rate_ratio < (1 - allowed_drift):
+
+        if (rate_ratio > (1 + allowed_drift) or
+                rate_ratio < (1 - allowed_drift)):
             raise ValueError(
                 f"Population rate drift exceeds seasonal bounds: "
-                f"current={current_pop_rate:.4f}, target={self.target_population_rate:.4f}, "
-                f"ratio={rate_ratio:.4f}, allowed_drift={allowed_drift:.4f}"
+                f"current={current_pop_rate:.4f}, "
+                f"target={self.target_population_rate:.4f}, "
+                f"ratio={rate_ratio:.4f}, "
+                f"allowed_drift={allowed_drift:.4f}"
             )
 
     def get_current_risks(self) -> np.ndarray:

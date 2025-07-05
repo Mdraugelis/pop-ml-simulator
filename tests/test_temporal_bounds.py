@@ -26,7 +26,8 @@ class TestTemporalRiskBounds:
         for _ in range(20):
             risks = self.simulator.step()
             rate_ratio = np.mean(risks) / target
-            assert rate_ratio <= (1 + allowed_variation) and rate_ratio >= (1 - allowed_variation)
+            assert (rate_ratio <= (1 + allowed_variation) and
+                    rate_ratio >= (1 - allowed_variation))
 
     def test_temporal_bounds_enforced(self):
         for _ in range(10):
