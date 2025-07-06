@@ -25,6 +25,11 @@ from .ml_simulation import (
     optimize_alert_threshold,
     analyze_risk_stratified_performance
 )
+from .risk_integration import (
+    integrate_window_risk,
+    extract_risk_windows,
+    validate_integration_bounds
+)
 
 __all__: List[str] = [
     "add",
@@ -49,5 +54,9 @@ __all__: List[str] = [
     "evaluate_topk",
     "optimize_alert_threshold",
     "analyze_risk_stratified_performance",
+    # Risk integration functions
+    "integrate_window_risk",
+    "extract_risk_windows",
+    "validate_integration_bounds",
 ]
 __version__ = "0.1.0"
