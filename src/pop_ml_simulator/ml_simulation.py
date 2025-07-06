@@ -1108,7 +1108,7 @@ def benchmark_temporal_ml_performance(
                 'config_id': config_id,
                 'start_time': config['start_time'],
                 'window_length': config['window_length'],
-                'integration_method': config['integration_method'],
+                'integration_method': 'survival',
                 'temporal_sensitivity': temporal_metrics['sensitivity'],
                 'temporal_ppv': temporal_metrics['ppv'],
                 'temporal_f1': temporal_metrics['f1'],
@@ -1136,7 +1136,7 @@ def benchmark_temporal_ml_performance(
                 'config_id': config_id,
                 'start_time': config['start_time'],
                 'window_length': config['window_length'],
-                'integration_method': config['integration_method'],
+                'integration_method': 'survival',
                 'error': str(e)
             }
             results.append(result)
