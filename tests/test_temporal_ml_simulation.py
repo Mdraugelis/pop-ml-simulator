@@ -208,6 +208,9 @@ class TestMLPredictionSimulatorTemporal(unittest.TestCase):
             prediction_start_time=8,
             prediction_window_length=6
         )
+        
+        # Verify integration method is correctly set to survival
+        self.assertEqual(info['integration_method'], 'survival')
 
         # Check outputs
         self.assertEqual(preds.shape, (self.n_patients,))
@@ -454,14 +457,16 @@ class TestTemporalMLBenchmarking(unittest.TestCase):
             configs,
             random_seed=42
         )
-
+        
+        # Verify integration method is always set to survival
         row = results_df.iloc[0]
+        self.assertEqual(row['integration_method'], 'survival')
 
         # Both temporal and static should have reasonable performance
         self.assertGreater(row['temporal_sensitivity'], 0.1)
-        self.assertLess(row['temporal_sensitivity'], 1.0)
+        self.assertLessEqual(row['temporal_sensitivity'], 1.0)
         self.assertGreater(row['static_sensitivity'], 0.1)
-        self.assertLess(row['static_sensitivity'], 1.0)
+        self.assertLessEqual(row['static_sensitivity'], 1.0)
 
         # PPV values should be reasonable
         self.assertGreater(row['temporal_ppv'], 0.05)

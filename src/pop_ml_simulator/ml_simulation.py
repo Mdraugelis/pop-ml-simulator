@@ -438,8 +438,8 @@ class MLPredictionSimulator:
         n_patients, n_timesteps = temporal_risk_matrix.shape
         integration_info = {
             'integration_method': 'survival',
-            'window_start': float(prediction_start_time),
-            'window_length': float(prediction_window_length),
+            'window_start': prediction_start_time,
+            'window_length': prediction_window_length,
             'mean_integrated_risk': float(np.mean(integrated_risks)),
             'std_integrated_risk': float(np.std(integrated_risks)),
             'optimization_correlation': params['correlation'],
@@ -901,7 +901,7 @@ def generate_temporal_ml_predictions(
         'integrated_risk_correlation': integrated_correlation,
         'mean_integrated_risk': float(np.mean(integrated_risks)),
         'integration_method': 'survival',
-        'window_length': float(prediction_window_length),
+        'window_length': prediction_window_length,
         'optimization_correlation': optimization_params['correlation'],
         'optimization_scale': optimization_params['scale']
     })
