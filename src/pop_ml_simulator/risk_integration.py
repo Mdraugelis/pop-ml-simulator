@@ -2,38 +2,28 @@
 Risk integration module for temporal risk windows.
 
 This module provides methods for converting risk trajectories over prediction
-windows into single integrated risk values, supporting survival-based,
-averaging, and weighted recent approaches.
+windows into single integrated risk values using survival-based integration.
 """
 
 import numpy as np
-from typing import Literal
 import warnings
 
 
 def integrate_window_risk(
     window_risks: np.ndarray,
-    integration_method: Literal[
-        'survival', 'average', 'weighted_recent'
-    ] = 'survival',
     timestep_duration: float = 1/52
 ) -> np.ndarray:
     """
     Convert temporal risk trajectory over window to single risk prediction.
 
     This function integrates patient risk values over a prediction window
-    using one of three methods to produce a single risk estimate.
+    using survival-based integration to produce a single risk estimate.
 
     Parameters
     ----------
     window_risks : np.ndarray
         Risk values for each patient over the prediction window.
         Shape: (n_patients, window_length) or (window_length,) for single
-    integration_method : {'survival', 'average', 'weighted_recent'}
-        Method for integrating risks:
-        - 'survival': Convert to hazards, sum cumulative hazard, convert back
-        - 'average': Simple mean of risks over window
-        - 'weighted_recent': Exponentially weighted average favoring recent
     timestep_duration : float, default=1/52
         Duration of each timestep as fraction of year (e.g., 1/52 for weekly)
 
@@ -47,19 +37,18 @@ def integrate_window_risk(
     --------
     >>> # Single patient with increasing risk over 4 weeks
     >>> risks = np.array([0.1, 0.15, 0.2, 0.25])
-    >>> integrated = integrate_window_risk(risks, method='survival')
+    >>> integrated = integrate_window_risk(risks)
     >>> print(f"Integrated risk: {integrated:.3f}")
 
     >>> # Multiple patients
     >>> risks = np.random.uniform(0.05, 0.15, size=(100, 12))
-    >>> integrated = integrate_window_risk(risks, method='survival')
+    >>> integrated = integrate_window_risk(risks)
     >>> print(f"Shape: {integrated.shape}")
 
     Notes
     -----
-    The survival-based method is recommended as it properly accounts for
-    the cumulative nature of risk over time, following the mathematical
-    relationship: S(t) = exp(-∫h(s)ds)
+    This method properly accounts for the cumulative nature of risk over
+    time, following the mathematical relationship: S(t) = exp(-∫h(s)ds)
     """
     # Handle input dimensions
     single_patient = False
@@ -78,42 +67,20 @@ def integrate_window_risk(
         warnings.warn("Risk values outside [0, 1] will be clipped")
         window_risks = np.clip(window_risks, 0.0, 1.0)
 
-    if integration_method == 'survival':
-        # Convert risks to hazards for each timestep
-        # Clip to avoid log(0) issues
-        clipped_risks = np.clip(window_risks, 1e-10, 1 - 1e-10)
+    # Convert risks to hazards for each timestep
+    # Clip to avoid log(0) issues
+    clipped_risks = np.clip(window_risks, 1e-10, 1 - 1e-10)
 
-        # Convert each timestep risk to hazard rate
-        # These are conditional probabilities, so we need to adjust
-        timestep_hazards = -np.log(1 - clipped_risks) / timestep_duration
+    # Convert each timestep risk to hazard rate
+    # These are conditional probabilities, so we need to adjust
+    timestep_hazards = -np.log(1 - clipped_risks) / timestep_duration
 
-        # Sum hazards over window (cumulative hazard)
-        cumulative_hazard = np.sum(timestep_hazards, axis=1) * \
-            timestep_duration
+    # Sum hazards over window (cumulative hazard)
+    cumulative_hazard = np.sum(timestep_hazards, axis=1) * \
+        timestep_duration
 
-        # Convert back to probability: P = 1 - exp(-H)
-        integrated_risks = 1 - np.exp(-cumulative_hazard)
-
-    elif integration_method == 'average':
-        # Simple averaging
-        integrated_risks = np.mean(window_risks, axis=1)
-
-    elif integration_method == 'weighted_recent':
-        # Exponentially weighted average favoring recent timesteps
-        # Create weights that decay exponentially going back in time
-        decay_rate = 0.1  # Controls how quickly weights decay
-        weights = np.exp(-decay_rate * np.arange(window_length - 1, -1, -1))
-        weights = weights / np.sum(weights)  # Normalize
-
-        # Apply weights
-        integrated_risks = np.sum(window_risks * weights[np.newaxis, :],
-                                  axis=1)
-
-    else:
-        raise ValueError(
-            f"Unknown integration method: {integration_method}. "
-            f"Must be one of 'survival', 'average', 'weighted_recent'"
-        )
+    # Convert back to probability: P = 1 - exp(-H)
+    integrated_risks = 1 - np.exp(-cumulative_hazard)
 
     # Final validation
     integrated_risks = np.clip(integrated_risks, 0.0, 1.0)
