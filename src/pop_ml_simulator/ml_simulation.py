@@ -906,7 +906,8 @@ def generate_temporal_ml_predictions(
     )
 
     # Combine all metrics into a single dict
-    all_metrics: Dict[str, object] = dict(performance_metrics)  # Copy numeric metrics
+    # Copy numeric metrics
+    all_metrics: Dict[str, object] = dict(performance_metrics)
     all_metrics.update({
         'temporal_correlation': temporal_correlation,
         'integrated_risk_correlation': integrated_correlation,
