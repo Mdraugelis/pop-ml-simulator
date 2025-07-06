@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd  # type: ignore
 from scipy import stats  # type: ignore
 from sklearn.metrics import roc_auc_score, confusion_matrix  # type: ignore
-from typing import Optional, Dict, List, Tuple, Union, Literal
+from typing import Optional, Dict, List, Tuple, Union
 from utils.logging import log_call
 from .risk_integration import integrate_window_risk, extract_risk_windows
 
@@ -357,9 +357,6 @@ class MLPredictionSimulator:
         temporal_risk_matrix: np.ndarray,
         prediction_start_time: int,
         prediction_window_length: int,
-        integration_method: Literal[
-            'survival', 'average', 'weighted_recent'
-        ] = 'survival',
         timestep_duration: float = 1/52
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, object]]:
         """
@@ -376,8 +373,6 @@ class MLPredictionSimulator:
             Starting timestep for the prediction window (0-indexed)
         prediction_window_length : int
             Length of the prediction window in timesteps
-        integration_method : {'survival', 'average', 'weighted_recent'}
-            Method for integrating temporal risks over the window
         timestep_duration : float, default=1/52
             Duration of each timestep as fraction of year
 
@@ -408,7 +403,6 @@ class MLPredictionSimulator:
         # Integrate temporal risks over the window
         integrated_risks = integrate_window_risk(
             risk_windows,
-            integration_method=integration_method,
             timestep_duration=timestep_duration
         )
 
@@ -443,7 +437,7 @@ class MLPredictionSimulator:
         # Calculate temporal correlation metrics
         n_patients, n_timesteps = temporal_risk_matrix.shape
         integration_info = {
-            'integration_method': str(integration_method),
+            'integration_method': 'survival',
             'window_start': float(prediction_start_time),
             'window_length': float(prediction_window_length),
             'mean_integrated_risk': float(np.mean(integrated_risks)),
@@ -755,9 +749,6 @@ def generate_temporal_ml_predictions(
     temporal_risk_matrix: np.ndarray,
     prediction_start_time: int,
     prediction_window_length: int,
-    integration_method: Literal[
-        'survival', 'average', 'weighted_recent'
-    ] = 'survival',
     target_sensitivity: float = 0.8,
     target_ppv: float = 0.3,
     timestep_duration: float = 1/52,
@@ -778,8 +769,6 @@ def generate_temporal_ml_predictions(
         Starting timestep for the prediction window (0-indexed)
     prediction_window_length : int
         Length of the prediction window in timesteps
-    integration_method : {'survival', 'average', 'weighted_recent'}
-        Method for integrating temporal risks over the window
     target_sensitivity : float, default=0.8
         Target sensitivity to achieve
     target_ppv : float, default=0.3
@@ -843,7 +832,6 @@ def generate_temporal_ml_predictions(
     # Integrate temporal risks over the window
     integrated_risks = integrate_window_risk(
         risk_windows,
-        integration_method=integration_method,
         timestep_duration=timestep_duration
     )
 
@@ -912,7 +900,7 @@ def generate_temporal_ml_predictions(
         'temporal_correlation': temporal_correlation,
         'integrated_risk_correlation': integrated_correlation,
         'mean_integrated_risk': float(np.mean(integrated_risks)),
-        'integration_method': str(integration_method),
+        'integration_method': 'survival',
         'window_length': float(prediction_window_length),
         'optimization_correlation': optimization_params['correlation'],
         'optimization_scale': optimization_params['scale']
@@ -1020,7 +1008,7 @@ def benchmark_temporal_ml_performance(
     Benchmark temporal ML performance across different window configurations.
 
     Compares temporal-aware predictions against static baseline approaches
-    across various prediction windows and integration methods.
+    across various prediction windows using survival-based integration.
 
     Parameters
     ----------
@@ -1032,7 +1020,6 @@ def benchmark_temporal_ml_performance(
         List of window configurations to test. Each dict should contain:
         - 'start_time': int
         - 'window_length': int
-        - 'integration_method': str
     random_seed : int, optional
         Random seed for reproducibility
 
@@ -1044,12 +1031,9 @@ def benchmark_temporal_ml_performance(
     Examples
     --------
     >>> configs = [
-    ...     {'start_time': 10, 'window_length': 4,
-    ...      'integration_method': 'survival'},
-    ...     {'start_time': 10, 'window_length': 12,
-    ...      'integration_method': 'survival'},
-    ...     {'start_time': 20, 'window_length': 8,
-    ...      'integration_method': 'average'}
+    ...     {'start_time': 10, 'window_length': 4},
+    ...     {'start_time': 10, 'window_length': 12},
+    ...     {'start_time': 20, 'window_length': 8}
     ... ]
     >>> results = benchmark_temporal_ml_performance(
     ...     temporal_matrix, base_risks, configs
@@ -1068,7 +1052,6 @@ def benchmark_temporal_ml_performance(
                     temporal_matrix,
                     prediction_start_time=config['start_time'],
                     prediction_window_length=config['window_length'],
-                    integration_method=config['integration_method'],
                     random_seed=random_seed
                 )
 

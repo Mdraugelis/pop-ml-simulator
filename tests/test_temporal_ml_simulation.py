@@ -84,38 +84,27 @@ class TestTemporalMLPredictions(unittest.TestCase):
         # Integrated risk correlation should be strong
         self.assertGreater(metrics['integrated_risk_correlation'], 0.3)
 
-    def test_integration_methods(self):
-        """Test all three integration methods."""
-        methods = ['survival', 'average', 'weighted_recent']
-        results = {}
+    def test_survival_integration_method(self):
+        """Test survival integration method."""
+        preds, binary, metrics = generate_temporal_ml_predictions(
+            self.temporal_matrix,
+            prediction_start_time=10,
+            prediction_window_length=8,
+            random_seed=42
+        )
 
-        for method in methods:
-            preds, binary, metrics = generate_temporal_ml_predictions(
-                self.temporal_matrix,
-                prediction_start_time=10,
-                prediction_window_length=8,
-                integration_method=method,
-                random_seed=42
-            )
-
-            results[method] = {
-                'predictions': preds,
-                'metrics': metrics
-            }
-
-            # Check that each method produces valid results
-            self.assertEqual(len(preds), self.n_patients)
-            self.assertIn('integration_method', metrics)
-            self.assertEqual(metrics['integration_method'], method)
-
-        # Methods should produce different results
-        survival_preds = results['survival']['predictions']
-        average_preds = results['average']['predictions']
-        weighted_preds = results['weighted_recent']['predictions']
-
-        # Predictions should be different across methods
-        self.assertFalse(np.allclose(survival_preds, average_preds))
-        self.assertFalse(np.allclose(average_preds, weighted_preds))
+        # Check that method produces valid results
+        self.assertEqual(len(preds), self.n_patients)
+        self.assertIn('integration_method', metrics)
+        self.assertEqual(metrics['integration_method'], 'survival')
+        
+        # Check that predictions are valid probabilities
+        self.assertTrue(np.all(preds >= 0))
+        self.assertTrue(np.all(preds <= 1))
+        
+        # Check that we have reasonable correlation with integrated risks
+        self.assertIn('integrated_risk_correlation', metrics)
+        self.assertGreater(metrics['integrated_risk_correlation'], 0.3)
 
     def test_performance_targets(self):
         """Test that performance targets are achieved within tolerance."""
@@ -217,8 +206,7 @@ class TestMLPredictionSimulatorTemporal(unittest.TestCase):
         preds, binary, info = self.simulator.generate_temporal_predictions(
             self.temporal_matrix,
             prediction_start_time=8,
-            prediction_window_length=6,
-            integration_method='survival'
+            prediction_window_length=6
         )
 
         # Check outputs
@@ -238,34 +226,28 @@ class TestMLPredictionSimulatorTemporal(unittest.TestCase):
         self.assertEqual(info['window_start'], 8)
         self.assertEqual(info['window_length'], 6)
 
-    def test_temporal_method_different_integration(self):
-        """Test temporal method with different integration approaches."""
-        methods = ['survival', 'average', 'weighted_recent']
-        results = {}
+    def test_temporal_method_consistency(self):
+        """Test temporal method produces consistent results."""
+        # Run the same prediction twice
+        preds1, binary1, info1 = self.simulator.generate_temporal_predictions(
+            self.temporal_matrix,
+            prediction_start_time=5,
+            prediction_window_length=8
+        )
+        
+        preds2, binary2, info2 = self.simulator.generate_temporal_predictions(
+            self.temporal_matrix,
+            prediction_start_time=5,
+            prediction_window_length=8
+        )
 
-        for method in methods:
-            preds, binary, info = self.simulator.generate_temporal_predictions(
-                self.temporal_matrix,
-                prediction_start_time=5,
-                prediction_window_length=8,
-                integration_method=method
-            )
-
-            results[method] = {
-                'predictions': preds,
-                'info': info
-            }
-
-        # Results should differ by method
-        for i, method1 in enumerate(methods):
-            for method2 in methods[i+1:]:
-                preds1 = results[method1]['predictions']
-                preds2 = results[method2]['predictions']
-
-                # Predictions should be different
-                correlation = np.corrcoef(preds1, preds2)[0, 1]
-                self.assertLess(correlation, 0.99,
-                                f"Methods {method1} and {method2} too similar")
+        # Should produce identical results (same random seed in simulator)
+        np.testing.assert_array_equal(preds1, preds2)
+        np.testing.assert_array_equal(binary1, binary2)
+        
+        # Info should be consistent
+        self.assertEqual(info1['integration_method'], 'survival')
+        self.assertEqual(info2['integration_method'], 'survival')
 
     def test_parameter_optimization_temporal(self):
         """Test that parameter optimization works with temporal data."""
@@ -416,18 +398,15 @@ class TestTemporalMLBenchmarking(unittest.TestCase):
         configs = [
             {
                 'start_time': 5,
-                'window_length': 8,
-                'integration_method': 'survival'
+                'window_length': 8
             },
             {
                 'start_time': 10,
-                'window_length': 6,
-                'integration_method': 'average'
+                'window_length': 6
             },
             {
                 'start_time': 15,
-                'window_length': 10,
-                'integration_method': 'weighted_recent'
+                'window_length': 10
             }
         ]
 
@@ -457,16 +436,15 @@ class TestTemporalMLBenchmarking(unittest.TestCase):
             row = results_df.iloc[i]
             self.assertEqual(row['start_time'], config['start_time'])
             self.assertEqual(row['window_length'], config['window_length'])
-            self.assertEqual(row['integration_method'],
-                             config['integration_method'])
+            # Integration method should always be 'survival' now
+            self.assertEqual(row['integration_method'], 'survival')
 
     def test_benchmark_comparison_temporal_vs_static(self):
         """Test that benchmark compares temporal vs static approaches."""
         configs = [
             {
                 'start_time': 8,
-                'window_length': 12,
-                'integration_method': 'survival'
+                'window_length': 12
             }
         ]
 
@@ -497,14 +475,12 @@ class TestTemporalMLBenchmarking(unittest.TestCase):
             # Valid config
             {
                 'start_time': 5,
-                'window_length': 8,
-                'integration_method': 'survival'
+                'window_length': 8
             },
             # Invalid config (window extends beyond matrix)
             {
                 'start_time': 25,
-                'window_length': 20,  # 25 + 20 = 45 > 30
-                'integration_method': 'average'
+                'window_length': 20  # 25 + 20 = 45 > 30
             }
         ]
 

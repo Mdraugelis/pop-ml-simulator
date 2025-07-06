@@ -13,8 +13,8 @@ from pop_ml_simulator.risk_integration import (
 )
 
 
-class TestWindowRiskIntegration(unittest.TestCase):
-    """Test cases for window risk integration methods."""
+class TestSurvivalRiskIntegration(unittest.TestCase):
+    """Test cases for survival-based window risk integration."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -38,9 +38,7 @@ class TestWindowRiskIntegration(unittest.TestCase):
         """Test survival-based integration method."""
         # Single patient constant risk
         single_risk = np.array([0.1, 0.1, 0.1, 0.1])
-        integrated = integrate_window_risk(
-            single_risk, integration_method='survival'
-        )
+        integrated = integrate_window_risk(single_risk)
 
         # For constant risk, integrated should be higher than single period
         self.assertGreater(integrated, 0.1)
@@ -48,9 +46,7 @@ class TestWindowRiskIntegration(unittest.TestCase):
         self.assertAlmostEqual(integrated, 0.344, places=3)
 
         # Multiple patients
-        integrated_multi = integrate_window_risk(
-            self.constant_risks, integration_method='survival'
-        )
+        integrated_multi = integrate_window_risk(self.constant_risks)
         self.assertEqual(integrated_multi.shape, (self.n_patients,))
         self.assertTrue(np.all(integrated_multi > 0.1))
         self.assertTrue(np.all(integrated_multi < 1.0))
@@ -156,9 +152,7 @@ class TestWindowRiskIntegration(unittest.TestCase):
 
         # Property 2: Should never exceed 1.0
         large_risks = np.full((1, 52), 0.5)  # 50% weekly risk for a year
-        integrated = integrate_window_risk(
-            large_risks, integration_method='survival'
-        )
+        integrated = integrate_window_risk(large_risks)
         self.assertLessEqual(integrated[0], 1.0)
         self.assertGreater(integrated[0], 0.99)  # Should be very close to 1
 
@@ -219,9 +213,7 @@ class TestWindowRiskIntegration(unittest.TestCase):
 
         import time
         start = time.time()
-        integrated = integrate_window_risk(
-            large_risks, integration_method='survival'
-        )
+        integrated = integrate_window_risk(large_risks)
         elapsed = time.time() - start
 
         # Should process 10k patients in under 1 second
@@ -346,48 +338,34 @@ class TestIntegrationBoundsValidation(unittest.TestCase):
         )
 
 
-class TestIntegrationConsistency(unittest.TestCase):
-    """Test consistency between different integration methods."""
+class TestSurvivalIntegrationProperties(unittest.TestCase):
+    """Test specific properties of survival-based integration."""
 
-    def test_constant_risk_consistency(self):
-        """Test that all methods agree for constant risks."""
+    def test_constant_risk_properties(self):
+        """Test survival integration for constant risks."""
         constant_risk = np.full((100, 12), 0.1)
+        survival = integrate_window_risk(constant_risk)
+        
+        # Should be higher than single timestep due to cumulative nature
+        self.assertTrue(np.all(survival > 0.1))
+        # But should be valid probabilities
+        self.assertTrue(np.all(survival <= 1.0))
 
-        survival = integrate_window_risk(
-            constant_risk, integration_method='survival'
-        )
-        average = integrate_window_risk(
-            constant_risk, integration_method='average'
-        )
-        weighted = integrate_window_risk(
-            constant_risk, integration_method='weighted_recent'
-        )
-
-        # For constant risks, average and weighted should be identical
-        np.testing.assert_array_almost_equal(average, weighted)
-        np.testing.assert_array_almost_equal(average, 0.1)
-
-        # Survival should be higher due to cumulative nature
-        self.assertTrue(np.all(survival > average))
-
-    def test_ordering_consistency(self):
-        """Test that methods maintain consistent ordering."""
+    def test_risk_ordering_preservation(self):
+        """Test that survival integration preserves risk ordering."""
         # Create patients with different risk levels
         n_patients = 5
         risk_levels = [0.05, 0.1, 0.15, 0.2, 0.25]
         risks = np.array([np.full(12, level) for level in risk_levels])
 
-        for method in ['survival', 'average', 'weighted_recent']:
-            integrated = integrate_window_risk(
-                risks, integration_method=method
-            )
+        integrated = integrate_window_risk(risks)
 
-            # Check that ordering is preserved
-            for i in range(n_patients - 1):
-                self.assertLess(
-                    integrated[i], integrated[i + 1],
-                    f"Method {method} failed to preserve risk ordering"
-                )
+        # Check that ordering is preserved
+        for i in range(n_patients - 1):
+            self.assertLess(
+                integrated[i], integrated[i + 1],
+                "Survival integration failed to preserve risk ordering"
+            )
 
 
 if __name__ == '__main__':
