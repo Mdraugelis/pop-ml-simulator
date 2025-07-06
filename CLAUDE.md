@@ -84,7 +84,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.getcwd()), 'src'))
 
 ### Git Workflow
 1. Create feature branch: `git checkout -b feature/description`
-2. Run all tests and quality checks
+2. Run flake8, mypy, all unit tests and test notebooks
 3. Create PR with comprehensive description
 4. Ensure GitHub Actions pass
 
