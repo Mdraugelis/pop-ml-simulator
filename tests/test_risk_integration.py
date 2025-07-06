@@ -345,7 +345,7 @@ class TestSurvivalIntegrationProperties(unittest.TestCase):
         """Test survival integration for constant risks."""
         constant_risk = np.full((100, 12), 0.1)
         survival = integrate_window_risk(constant_risk)
-        
+
         # Should be higher than single timestep due to cumulative nature
         self.assertTrue(np.all(survival > 0.1))
         # But should be valid probabilities

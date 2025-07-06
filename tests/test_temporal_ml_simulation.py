@@ -97,11 +97,11 @@ class TestTemporalMLPredictions(unittest.TestCase):
         self.assertEqual(len(preds), self.n_patients)
         self.assertIn('integration_method', metrics)
         self.assertEqual(metrics['integration_method'], 'survival')
-        
+
         # Check that predictions are valid probabilities
         self.assertTrue(np.all(preds >= 0))
         self.assertTrue(np.all(preds <= 1))
-        
+
         # Check that we have reasonable correlation with integrated risks
         self.assertIn('integrated_risk_correlation', metrics)
         self.assertGreater(metrics['integrated_risk_correlation'], 0.3)
@@ -208,7 +208,7 @@ class TestMLPredictionSimulatorTemporal(unittest.TestCase):
             prediction_start_time=8,
             prediction_window_length=6
         )
-        
+
         # Verify integration method is correctly set to survival
         self.assertEqual(info['integration_method'], 'survival')
 
@@ -237,7 +237,7 @@ class TestMLPredictionSimulatorTemporal(unittest.TestCase):
             prediction_start_time=5,
             prediction_window_length=8
         )
-        
+
         preds2, binary2, info2 = self.simulator.generate_temporal_predictions(
             self.temporal_matrix,
             prediction_start_time=5,
@@ -247,7 +247,7 @@ class TestMLPredictionSimulatorTemporal(unittest.TestCase):
         # Should produce identical results (same random seed in simulator)
         np.testing.assert_array_equal(preds1, preds2)
         np.testing.assert_array_equal(binary1, binary2)
-        
+
         # Info should be consistent
         self.assertEqual(info1['integration_method'], 'survival')
         self.assertEqual(info2['integration_method'], 'survival')
@@ -457,7 +457,7 @@ class TestTemporalMLBenchmarking(unittest.TestCase):
             configs,
             random_seed=42
         )
-        
+
         # Verify integration method is always set to survival
         row = results_df.iloc[0]
         self.assertEqual(row['integration_method'], 'survival')
