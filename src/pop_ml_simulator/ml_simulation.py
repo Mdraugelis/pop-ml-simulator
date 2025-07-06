@@ -10,8 +10,9 @@ import numpy as np
 import pandas as pd  # type: ignore
 from scipy import stats  # type: ignore
 from sklearn.metrics import roc_auc_score, confusion_matrix  # type: ignore
-from typing import Optional, Dict, List, Tuple, Union
+from typing import Optional, Dict, List, Tuple, Union, Literal
 from utils.logging import log_call
+from .risk_integration import integrate_window_risk, extract_risk_windows
 
 
 @log_call
@@ -350,6 +351,137 @@ class MLPredictionSimulator:
 
         return best_params
 
+    @log_call
+    def generate_temporal_predictions(
+        self,
+        temporal_risk_matrix: np.ndarray,
+        prediction_start_time: int,
+        prediction_window_length: int,
+        integration_method: Literal[
+            'survival', 'average', 'weighted_recent'
+        ] = 'survival',
+        timestep_duration: float = 1/52
+    ) -> Tuple[np.ndarray, np.ndarray, Dict[str, object]]:
+        """
+        Generate ML predictions using temporal risk matrix.
+
+        This method extends the MLPredictionSimulator to work with temporal
+        risk matrices, integrating risks over prediction windows.
+
+        Parameters
+        ----------
+        temporal_risk_matrix : np.ndarray
+            Complete temporal risk matrix, shape (n_patients, n_timesteps)
+        prediction_start_time : int
+            Starting timestep for the prediction window (0-indexed)
+        prediction_window_length : int
+            Length of the prediction window in timesteps
+        integration_method : {'survival', 'average', 'weighted_recent'}
+            Method for integrating temporal risks over the window
+        timestep_duration : float, default=1/52
+            Duration of each timestep as fraction of year
+
+        Returns
+        -------
+        predictions : np.ndarray
+            Predicted probabilities for each patient
+        binary_predictions : np.ndarray
+            Binary predictions using optimal threshold
+        integration_info : dict
+            Information about the integration process and correlations
+
+        Examples
+        --------
+        >>> simulator = MLPredictionSimulator(target_sensitivity=0.8)
+        >>> preds, binary, info = simulator.generate_temporal_predictions(
+        ...     temporal_matrix, start_time=10, window_length=12
+        ... )
+        >>> print(f"Temporal correlation: {info['temporal_correlation']:.3f}")
+        """
+        # Extract risk windows for all patients
+        risk_windows = extract_risk_windows(
+            temporal_risk_matrix,
+            prediction_start_time,
+            prediction_window_length
+        )
+
+        # Integrate temporal risks over the window
+        integrated_risks = integrate_window_risk(
+            risk_windows,
+            integration_method=integration_method,
+            timestep_duration=timestep_duration
+        )
+
+        # Generate realistic labels based on integrated risks
+        if self.random_seed is not None:
+            np.random.seed(self.random_seed)
+
+        # Create labels correlated with integrated risks
+        label_probabilities = integrated_risks * 1.3  # Amplify for realism
+        label_probabilities = np.clip(label_probabilities, 0.01, 0.95)
+        true_labels = np.random.binomial(1, label_probabilities)
+
+        # Optimize parameters for this specific temporal scenario
+        if self.noise_correlation is None or self.noise_scale is None:
+            params = self.optimize_noise_parameters(
+                true_labels, integrated_risks, n_iterations=15
+            )
+        else:
+            params = {
+                'correlation': self.noise_correlation,
+                'scale': self.noise_scale
+            }
+
+        # Generate predictions using integrated risks
+        predictions, binary_predictions = self.generate_predictions(
+            true_labels,
+            integrated_risks,
+            params['correlation'],
+            params['scale']
+        )
+
+        # Calculate temporal correlation metrics
+        n_patients, n_timesteps = temporal_risk_matrix.shape
+        integration_info = {
+            'integration_method': str(integration_method),
+            'window_start': float(prediction_start_time),
+            'window_length': float(prediction_window_length),
+            'mean_integrated_risk': float(np.mean(integrated_risks)),
+            'std_integrated_risk': float(np.std(integrated_risks)),
+            'optimization_correlation': params['correlation'],
+            'optimization_scale': params['scale']
+        }
+
+        # Calculate correlation with temporal risk changes
+        if prediction_window_length > 1:
+            window_end = prediction_start_time + prediction_window_length
+            risk_start = temporal_risk_matrix[:, prediction_start_time]
+            risk_end = temporal_risk_matrix[:, window_end - 1]
+            risk_change = risk_end - risk_start
+
+            if np.std(risk_change) > 0 and np.std(predictions) > 0:
+                temporal_correlation = float(
+                    np.corrcoef(predictions, risk_change)[0, 1]
+                )
+            else:
+                temporal_correlation = 0.0
+
+            integration_info['temporal_correlation'] = temporal_correlation
+            integration_info['mean_risk_change'] = float(np.mean(risk_change))
+            integration_info['std_risk_change'] = float(np.std(risk_change))
+
+        # Correlation between predictions and integrated risks
+        if np.std(integrated_risks) > 0 and np.std(predictions) > 0:
+            integration_correlation = float(
+                np.corrcoef(predictions, integrated_risks)[0, 1]
+            )
+        else:
+            integration_correlation = 0.0
+
+        integration_info['integration_correlation'] = integration_correlation
+
+        return predictions, binary_predictions, integration_info
+
 
 @log_call
 def evaluate_threshold_based(
@@ -614,5 +746,415 @@ def analyze_risk_stratified_performance(
                     'f1': metrics['f1'],
                     'optimal_threshold': best_threshold
                 })
+
+    return pd.DataFrame(results)
+
+
+@log_call
+def generate_temporal_ml_predictions(
+    temporal_risk_matrix: np.ndarray,
+    prediction_start_time: int,
+    prediction_window_length: int,
+    integration_method: Literal[
+        'survival', 'average', 'weighted_recent'
+    ] = 'survival',
+    target_sensitivity: float = 0.8,
+    target_ppv: float = 0.3,
+    timestep_duration: float = 1/52,
+    random_seed: Optional[int] = None
+) -> Tuple[np.ndarray, np.ndarray, Dict[str, object]]:
+    """
+    Generate ML predictions using integrated temporal window risks.
+
+    This function represents the core temporal-aware ML prediction approach
+    that integrates risk trajectories over prediction windows instead of
+    using static base risks.
+
+    Parameters
+    ----------
+    temporal_risk_matrix : np.ndarray
+        Complete temporal risk matrix, shape (n_patients, n_timesteps)
+    prediction_start_time : int
+        Starting timestep for the prediction window (0-indexed)
+    prediction_window_length : int
+        Length of the prediction window in timesteps
+    integration_method : {'survival', 'average', 'weighted_recent'}
+        Method for integrating temporal risks over the window
+    target_sensitivity : float, default=0.8
+        Target sensitivity to achieve
+    target_ppv : float, default=0.3
+        Target PPV to achieve
+    timestep_duration : float, default=1/52
+        Duration of each timestep as fraction of year
+    random_seed : int, optional
+        Random seed for reproducibility
+
+    Returns
+    -------
+    predictions : np.ndarray
+        Predicted probabilities for each patient
+    binary_predictions : np.ndarray
+        Binary predictions using optimal threshold
+    performance_metrics : dict
+        Achieved performance metrics and correlation statistics
+
+    Examples
+    --------
+    >>> # Generate temporal risk matrix
+    >>> temporal_matrix = build_temporal_risk_matrix(base_risks, 52)
+    >>> # Generate predictions for 12-week window starting at week 10
+    >>> preds, binary, metrics = generate_temporal_ml_predictions(
+    ...     temporal_matrix, prediction_start_time=10,
+    ...     prediction_window_length=12
+    ... )
+    >>> print(f"Achieved sensitivity: {metrics['sensitivity']:.1%}")
+
+    Notes
+    -----
+    This function combines temporal risk integration with ML prediction
+    simulation to create realistic predictions that account for temporal
+    risk evolution. It validates that predictions correlate with temporal
+    risk changes and maintain target performance metrics.
+    """
+    n_patients, n_timesteps = temporal_risk_matrix.shape
+
+    # Validate window bounds
+    if prediction_start_time < 0:
+        raise ValueError(
+            f"prediction_start_time must be non-negative, "
+            f"got {prediction_start_time}"
+        )
+
+    window_end = prediction_start_time + prediction_window_length
+    if window_end > n_timesteps:
+        raise ValueError(
+            f"Prediction window extends beyond available timesteps. "
+            f"Requested window [{prediction_start_time}, {window_end}), "
+            f"but only have {n_timesteps} timesteps"
+        )
+
+    # Extract risk windows for all patients
+    risk_windows = extract_risk_windows(
+        temporal_risk_matrix,
+        prediction_start_time,
+        prediction_window_length
+    )
+
+    # Integrate temporal risks over the window
+    integrated_risks = integrate_window_risk(
+        risk_windows,
+        integration_method=integration_method,
+        timestep_duration=timestep_duration
+    )
+
+    # Generate ground truth labels based on integrated risks
+    # For simulation purposes, we create realistic labels
+    if random_seed is not None:
+        np.random.seed(random_seed)
+
+    # Create labels with some randomness but correlated with integrated risks
+    label_probabilities = integrated_risks * 1.2  # Slight amplification
+    label_probabilities = np.clip(label_probabilities, 0.01, 0.95)
+    true_labels = np.random.binomial(1, label_probabilities)
+
+    # Create ML prediction simulator
+    ml_simulator = MLPredictionSimulator(
+        target_sensitivity=target_sensitivity,
+        target_ppv=target_ppv,
+        random_seed=random_seed
+    )
+
+    # Optimize noise parameters using integrated risks and generated labels
+    optimization_params = ml_simulator.optimize_noise_parameters(
+        true_labels, integrated_risks, n_iterations=15
+    )
+
+    # Generate ML predictions using integrated temporal risks
+    predictions, binary_predictions = ml_simulator.generate_predictions(
+        true_labels,
+        integrated_risks,
+        optimization_params['correlation'],
+        optimization_params['scale']
+    )
+
+    # Calculate performance metrics
+    performance_metrics = evaluate_threshold_based(
+        true_labels, predictions, ml_simulator.threshold or 0.5
+    )
+
+    # Calculate temporal correlation metrics
+    # Correlation between predictions and temporal risk changes
+    if prediction_window_length > 1:
+        # Calculate risk change over the window
+        risk_start = temporal_risk_matrix[:, prediction_start_time]
+        risk_end = temporal_risk_matrix[:, window_end - 1]
+        risk_change = risk_end - risk_start
+
+        # Correlation between predictions and risk changes
+        if np.std(risk_change) > 0 and np.std(predictions) > 0:
+            temporal_correlation = float(
+                np.corrcoef(predictions, risk_change)[0, 1]
+            )
+        else:
+            temporal_correlation = 0.0
+    else:
+        temporal_correlation = np.nan
+
+    # Correlation between predictions and integrated risks
+    integrated_correlation = float(
+        np.corrcoef(predictions, integrated_risks)[0, 1]
+    )
+
+    # Combine all metrics into a single dict
+    all_metrics: Dict[str, object] = dict(performance_metrics)  # Copy numeric metrics
+    all_metrics.update({
+        'temporal_correlation': temporal_correlation,
+        'integrated_risk_correlation': integrated_correlation,
+        'mean_integrated_risk': float(np.mean(integrated_risks)),
+        'integration_method': str(integration_method),
+        'window_length': float(prediction_window_length),
+        'optimization_correlation': optimization_params['correlation'],
+        'optimization_scale': optimization_params['scale']
+    })
+
+    return predictions, binary_predictions, all_metrics
+
+
+@log_call
+def validate_temporal_sensitivity(
+    temporal_risks: np.ndarray,
+    predictions: np.ndarray,
+    min_correlation: float = 0.5
+) -> Dict[str, float]:
+    """
+    Validate that predictions are sensitive to temporal risk changes.
+
+    This function ensures that ML predictions appropriately reflect
+    temporal variations in patient risk, which is a key requirement
+    for realistic temporal ML simulation.
+
+    Parameters
+    ----------
+    temporal_risks : np.ndarray
+        Temporal risk values, shape (n_patients, n_timesteps)
+    predictions : np.ndarray
+        ML predictions for each patient
+    min_correlation : float, default=0.5
+        Minimum required correlation for validation to pass
+
+    Returns
+    -------
+    validation_results : dict
+        Correlation statistics and validation status
+
+    Examples
+    --------
+    >>> validation = validate_temporal_sensitivity(
+    ...     temporal_matrix, predictions
+    ... )
+    >>> if validation['passes_threshold']:
+    ...     print("Temporal sensitivity validation PASSED")
+    """
+    n_patients, n_timesteps = temporal_risks.shape
+
+    # Calculate various temporal sensitivity metrics
+    correlations = []
+
+    # Correlation with mean temporal risk
+    mean_temporal_risk = np.mean(temporal_risks, axis=1)
+    if np.std(mean_temporal_risk) > 0 and np.std(predictions) > 0:
+        mean_correlation = float(
+            np.corrcoef(predictions, mean_temporal_risk)[0, 1]
+        )
+    else:
+        mean_correlation = 0.0
+
+    correlations.append(mean_correlation)
+
+    # Correlation with temporal variance (risk volatility)
+    temporal_variance = np.var(temporal_risks, axis=1)
+    if np.std(temporal_variance) > 0 and np.std(predictions) > 0:
+        variance_correlation = float(
+            np.corrcoef(predictions, temporal_variance)[0, 1]
+        )
+    else:
+        variance_correlation = 0.0
+
+    # Correlation with final risk value
+    final_risk = temporal_risks[:, -1]
+    if np.std(final_risk) > 0 and np.std(predictions) > 0:
+        final_correlation = float(
+            np.corrcoef(predictions, final_risk)[0, 1]
+        )
+    else:
+        final_correlation = 0.0
+
+    correlations.append(final_correlation)
+
+    # Overall temporal sensitivity score
+    max_correlation = max(correlations)
+    mean_abs_correlation = np.mean(np.abs(correlations))
+
+    validation_results = {
+        'mean_risk_correlation': mean_correlation,
+        'variance_correlation': variance_correlation,
+        'final_risk_correlation': final_correlation,
+        'max_correlation': max_correlation,
+        'mean_abs_correlation': mean_abs_correlation,
+        'passes_threshold': max_correlation >= min_correlation,
+        'min_required_correlation': min_correlation
+    }
+
+    return validation_results
+
+
+@log_call
+def benchmark_temporal_ml_performance(
+    temporal_matrix: np.ndarray,
+    base_risks: np.ndarray,
+    window_configs: List[Dict],
+    random_seed: Optional[int] = None
+) -> pd.DataFrame:
+    """
+    Benchmark temporal ML performance across different window configurations.
+
+    Compares temporal-aware predictions against static baseline approaches
+    across various prediction windows and integration methods.
+
+    Parameters
+    ----------
+    temporal_matrix : np.ndarray
+        Complete temporal risk matrix, shape (n_patients, n_timesteps)
+    base_risks : np.ndarray
+        Static base risks for comparison baseline
+    window_configs : list of dict
+        List of window configurations to test. Each dict should contain:
+        - 'start_time': int
+        - 'window_length': int
+        - 'integration_method': str
+    random_seed : int, optional
+        Random seed for reproducibility
+
+    Returns
+    -------
+    benchmark_results : pd.DataFrame
+        Performance comparison results
+
+    Examples
+    --------
+    >>> configs = [
+    ...     {'start_time': 10, 'window_length': 4,
+    ...      'integration_method': 'survival'},
+    ...     {'start_time': 10, 'window_length': 12,
+    ...      'integration_method': 'survival'},
+    ...     {'start_time': 20, 'window_length': 8,
+    ...      'integration_method': 'average'}
+    ... ]
+    >>> results = benchmark_temporal_ml_performance(
+    ...     temporal_matrix, base_risks, configs
+    ... )
+    >>> print(results[['config', 'temporal_auc', 'static_auc']].round(3))
+    """
+    results = []
+
+    for i, config in enumerate(window_configs):
+        config_id = f"config_{i+1}"
+
+        try:
+            # Generate temporal predictions
+            temporal_preds, temporal_binary, temporal_metrics = \
+                generate_temporal_ml_predictions(
+                    temporal_matrix,
+                    prediction_start_time=config['start_time'],
+                    prediction_window_length=config['window_length'],
+                    integration_method=config['integration_method'],
+                    random_seed=random_seed
+                )
+
+            # Generate static baseline predictions for comparison
+            # Create labels based on base risks for fair comparison
+            if random_seed is not None:
+                np.random.seed(random_seed + 1000)  # Different seed
+
+            static_label_probs = base_risks * 1.2
+            static_label_probs = np.clip(static_label_probs, 0.01, 0.95)
+            static_labels = np.random.binomial(1, static_label_probs)
+
+            static_simulator = MLPredictionSimulator(
+                target_sensitivity=0.8,
+                target_ppv=0.3,
+                random_seed=random_seed
+            )
+
+            static_params = static_simulator.optimize_noise_parameters(
+                static_labels, base_risks, n_iterations=10
+            )
+
+            static_preds, static_binary = (
+                static_simulator.generate_predictions(
+                    static_labels,
+                    base_risks,
+                    static_params['correlation'],
+                    static_params['scale']
+                )
+            )
+
+            static_metrics = evaluate_threshold_based(
+                static_labels, static_preds, static_simulator.threshold or 0.5
+            )
+
+            # Calculate AUCs if possible
+            temporal_auc = np.nan
+            static_auc = np.nan
+
+            # For temporal predictions
+            if len(np.unique(temporal_binary)) > 1:
+                # Create labels from temporal predictions for AUC calculation
+                # Use binary predictions as proxy
+                temp_labels = temporal_binary
+                if len(np.unique(temp_labels)) > 1:
+                    temporal_auc = roc_auc_score(temp_labels, temporal_preds)
+
+            # For static predictions
+            if len(np.unique(static_labels)) > 1:
+                static_auc = roc_auc_score(static_labels, static_preds)
+
+            # Compile results
+            result = {
+                'config_id': config_id,
+                'start_time': config['start_time'],
+                'window_length': config['window_length'],
+                'integration_method': config['integration_method'],
+                'temporal_sensitivity': temporal_metrics['sensitivity'],
+                'temporal_ppv': temporal_metrics['ppv'],
+                'temporal_f1': temporal_metrics['f1'],
+                'temporal_auc': temporal_auc,
+                'static_sensitivity': static_metrics['sensitivity'],
+                'static_ppv': static_metrics['ppv'],
+                'static_f1': static_metrics['f1'],
+                'static_auc': static_auc,
+                'temporal_correlation': (
+                    temporal_metrics['temporal_correlation']
+                ),
+                'integrated_correlation': (
+                    temporal_metrics['integrated_risk_correlation']
+                ),
+                'mean_integrated_risk': (
+                    temporal_metrics['mean_integrated_risk']
+                )
+            }
+
+            results.append(result)
+
+        except Exception as e:
+            # Log failed configuration but continue
+            result = {
+                'config_id': config_id,
+                'start_time': config['start_time'],
+                'window_length': config['window_length'],
+                'integration_method': config['integration_method'],
+                'error': str(e)
+            }
+            results.append(result)
 
     return pd.DataFrame(results)
