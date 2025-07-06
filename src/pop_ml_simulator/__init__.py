@@ -23,7 +23,10 @@ from .ml_simulation import (
     evaluate_threshold_based,
     evaluate_topk,
     optimize_alert_threshold,
-    analyze_risk_stratified_performance
+    analyze_risk_stratified_performance,
+    generate_temporal_ml_predictions,
+    validate_temporal_sensitivity,
+    benchmark_temporal_ml_performance
 )
 from .risk_integration import (
     integrate_window_risk,
@@ -58,5 +61,9 @@ __all__: List[str] = [
     "integrate_window_risk",
     "extract_risk_windows",
     "validate_integration_bounds",
+    # Temporal ML functions
+    "generate_temporal_ml_predictions",
+    "validate_temporal_sensitivity",
+    "benchmark_temporal_ml_performance",
 ]
 __version__ = "0.1.0"
