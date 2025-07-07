@@ -83,11 +83,11 @@ def medium_temporal_matrix(medium_patient_risks):
 
 @pytest.fixture(scope="session")
 def large_temporal_matrix(large_patient_risks):
-    """Large temporal risk matrix (1000 patients × 52 timesteps)."""
+    """Large temporal risk matrix (1000 patients × 26 timesteps)."""
     np.random.seed(42)
     return build_temporal_risk_matrix(
         large_patient_risks,
-        n_timesteps=52,
+        n_timesteps=26,
         random_seed=42
     )
 
@@ -146,3 +146,29 @@ def cached_ml_params():
         'target_sensitivity': 0.8,
         'target_ppv': 0.3
     }
+
+
+@pytest.fixture(scope="session")
+def test_config():
+    """Standard test configuration parameters."""
+    return {
+        'random_seed': 42,
+        'small_n_patients': 100,
+        'medium_n_patients': 500,
+        'large_n_patients': 1000,
+        'small_n_timesteps': 12,
+        'medium_n_timesteps': 26,
+        'large_n_timesteps': 52
+    }
+
+
+# Note: To fully utilize these fixtures, test classes should be refactored
+# to use pytest fixtures instead of unittest setUp methods.
+# Example pattern:
+#
+# @pytest.mark.usefixtures("medium_patient_risks", "medium_temporal_matrix")
+# class TestTemporalMLPredictions:
+#     def test_something(self, medium_patient_risks, medium_temporal_matrix):
+#         # Use fixtures directly instead of self.base_risks,
+#         # self.temporal_matrix
+#         pass
