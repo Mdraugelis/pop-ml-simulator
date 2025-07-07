@@ -16,7 +16,7 @@ from pop_ml_simulator.temporal_dynamics import (
 class TestAR1Process(unittest.TestCase):
     """Test cases for AR(1) process simulation."""
 
-    @pytest.mark.skip(reason="Performance: Skip expensive AR1 simulation for CI")
+    @pytest.mark.skip(reason="Performance: Skip expensive AR1 simulation")
     def test_simulate_ar1_basic(self):
         """Test basic AR(1) simulation."""
         n_timesteps = 50
@@ -411,7 +411,7 @@ class TestTemporalRiskMatrix(unittest.TestCase):
             err_msg="Initial timestep should match base risks exactly"
         )
 
-    @pytest.mark.skip(reason="Performance: Skip expensive autocorrelation test for CI")
+    @pytest.mark.skip(reason="Performance: Skip autocorrelation test")
     def test_temporal_autocorrelation(self):
         """Test temporal autocorrelation > 0.8 for patient trajectories."""
         risk_matrix = build_temporal_risk_matrix(
@@ -499,7 +499,7 @@ class TestTemporalRiskMatrix(unittest.TestCase):
         with self.assertRaises(ValueError):
             simulator.get_timestep_risks(self.n_timesteps)
 
-    @pytest.mark.skip(reason="Performance: Skip expensive performance test for CI")
+    @pytest.mark.skip(reason="Performance: Skip expensive performance")
     def test_temporal_risk_matrix_performance(self):
         """Test performance for large matrices."""
         import time

@@ -192,7 +192,7 @@ class TestIncidentGenerator(unittest.TestCase):
                 self.assertGreaterEqual(current_incidence, prev_incidence)
             prev_incidence = current_incidence
 
-        # Final incidence should be reasonable for reduced simulation period  
+        # Final incidence should be reasonable for reduced simulation period
         final_incidence = gen.get_cumulative_incidence()
         self.assertGreater(final_incidence, 0.02)  # At least 2%
         self.assertLess(final_incidence, 0.15)     # At most 15%

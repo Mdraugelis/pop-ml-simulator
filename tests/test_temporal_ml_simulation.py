@@ -107,7 +107,7 @@ class TestTemporalMLPredictions(unittest.TestCase):
         self.assertIn('integrated_risk_correlation', metrics)
         self.assertGreater(metrics['integrated_risk_correlation'], 0.3)
 
-    @pytest.mark.skip(reason="Performance: Skip expensive ML target optimization for CI")
+    @pytest.mark.skip(reason="Performance: Skip ML target optimization")
     def test_performance_targets(self):
         """Test that performance targets are achieved within tolerance."""
         target_sens = 0.8
@@ -134,7 +134,7 @@ class TestTemporalMLPredictions(unittest.TestCase):
                         f"PPV {metrics['ppv']:.3f} not within "
                         f"{tolerance:.1%} of target {target_ppv:.3f}")
 
-    @pytest.mark.skip(reason="Performance: Skip expensive bounds validation for CI")
+    @pytest.mark.skip(reason="Performance: Skip bounds validation")
     def test_window_bounds_validation(self):
         """Test validation of prediction window bounds."""
         # Test negative start time
@@ -263,7 +263,7 @@ class TestMLPredictionSimulatorTemporal(unittest.TestCase):
         self.assertEqual(info1['window_start'], info2['window_start'])
         self.assertEqual(info1['window_length'], info2['window_length'])
 
-    @pytest.mark.skip(reason="Performance: Skip expensive parameter optimization for CI")
+    @pytest.mark.skip(reason="Performance: Skip parameter optimization")
     def test_parameter_optimization_temporal(self):
         """Test that parameter optimization works with temporal data."""
         # First call should optimize parameters
@@ -291,7 +291,7 @@ class TestMLPredictionSimulatorTemporal(unittest.TestCase):
                          info2['optimization_scale'])
 
 
-@pytest.mark.skip(reason="Performance: Skip expensive temporal validation tests for CI")
+@pytest.mark.skip(reason="Performance: Skip temporal validation tests")
 class TestTemporalSensitivityValidation(unittest.TestCase):
     """Test temporal sensitivity validation functionality."""
 
@@ -390,7 +390,7 @@ class TestTemporalSensitivityValidation(unittest.TestCase):
         self.assertFalse(validation['passes_threshold'])
 
 
-@pytest.mark.skip(reason="Performance: Skip expensive benchmarking tests for CI")
+@pytest.mark.skip(reason="Performance: Skip benchmarking tests")
 class TestTemporalMLBenchmarking(unittest.TestCase):
     """Test temporal ML performance benchmarking functionality."""
 
@@ -520,7 +520,7 @@ class TestTemporalMLBenchmarking(unittest.TestCase):
         self.assertIn('error', results_df.iloc[1])
 
 
-@pytest.mark.skip(reason="Performance: Skip expensive integration tests for CI")
+@pytest.mark.skip(reason="Performance: Skip integration tests")
 class TestIntegrationWithExistingWorkflow(unittest.TestCase):
     """Test integration with existing ML simulation workflow."""
 
