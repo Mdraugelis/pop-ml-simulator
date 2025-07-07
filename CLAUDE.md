@@ -17,6 +17,9 @@ Always reference the design document to guide architecture, function and require
 # Run tests (excluding optional logging decorator test)
 python tests/run_tests.py -k "not test_public_functions_are_decorated"
 
+# Run tests in parallel for faster execution (requires pytest-xdist)
+python tests/run_tests.py -n auto
+
 # Code quality checks
 flake8 src tests
 mypy src
@@ -78,9 +81,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.getcwd()), 'src'))
 
 ### Testing Requirements
 - All public functions should have unit tests
-- Notebooks must execute without errors
+- Notebooks must execute without errors  
 - Maintain >90% test coverage
 - Fix all flake8 and mypy issues before PRs
+- Tests optimized for performance: smaller datasets (100-500 patients), reduced timesteps (12-26), parallel execution
+- Use shared fixtures from conftest.py to avoid redundant setup
 
 ### Git Workflow
 1. Create feature branch: `git checkout -b feature/description`
@@ -94,6 +99,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.getcwd()), 'src'))
 - Made logging optional rather than mandatory
 - Added comprehensive notebook testing to CI/CD
 - Implemented ML simulation framework (Issue #19) with controlled performance
+- Optimized test performance (Issue #46): reduced dataset sizes, shared fixtures, parallel execution
 
 ## Environment
 - Python: 3.13.5

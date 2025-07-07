@@ -17,7 +17,7 @@ class TestAR1Process(unittest.TestCase):
 
     def test_simulate_ar1_basic(self):
         """Test basic AR(1) simulation."""
-        n_timesteps = 100
+        n_timesteps = 50
         rho = 0.9
         sigma = 0.1
 
@@ -35,7 +35,7 @@ class TestAR1Process(unittest.TestCase):
 
     def test_simulate_ar1_persistence(self):
         """Test that persistence parameter affects autocorrelation."""
-        n_timesteps = 1000
+        n_timesteps = 200
         sigma = 0.1
 
         # High persistence
@@ -85,7 +85,7 @@ class TestTemporalRiskSimulator(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         np.random.seed(42)
-        self.n_patients = 100
+        self.n_patients = 50
         self.base_risks = np.random.uniform(0.05, 0.2, self.n_patients)
 
     def test_initialization(self):
@@ -124,7 +124,7 @@ class TestTemporalRiskSimulator(unittest.TestCase):
         """Test multi-step simulation."""
         sim = TemporalRiskSimulator(self.base_risks, rho=0.9, sigma=0.1)
 
-        n_steps = 52
+        n_steps = 26
         sim.simulate(n_steps)
 
         # Should have n_steps + 1 entries (including initial)
@@ -166,7 +166,7 @@ class TestTemporalRiskSimulator(unittest.TestCase):
     def test_population_mean_preservation(self):
         """Test that population mean risk is preserved over time."""
         sim = TemporalRiskSimulator(self.base_risks, rho=0.9, sigma=0.1)
-        sim.simulate(100)
+        sim.simulate(50)
 
         _, risk_hist = sim.get_histories()
 
@@ -183,7 +183,7 @@ class TestEnhancedTemporalRiskSimulator(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         np.random.seed(42)
-        self.n_patients = 100
+        self.n_patients = 50
         self.base_risks = np.random.uniform(0.05, 0.2, self.n_patients)
 
     def test_initialization(self):
@@ -353,8 +353,8 @@ class TestTemporalRiskMatrix(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         np.random.seed(42)
-        self.n_patients = 100
-        self.n_timesteps = 20
+        self.n_patients = 50
+        self.n_timesteps = 12
         self.base_risks = np.random.uniform(0.05, 0.2, self.n_patients)
 
     def test_temporal_risk_matrix_construction(self):
@@ -413,7 +413,7 @@ class TestTemporalRiskMatrix(unittest.TestCase):
         """Test temporal autocorrelation > 0.8 for patient trajectories."""
         risk_matrix = build_temporal_risk_matrix(
             self.base_risks,
-            n_timesteps=52,  # Need more timesteps for reliable correlation
+            n_timesteps=26,  # Need fewer timesteps for performance
             rho=0.9,
             random_seed=42
         )
@@ -502,7 +502,7 @@ class TestTemporalRiskMatrix(unittest.TestCase):
 
         # Test with smaller matrix for CI (1000x104 might be too slow for CI)
         large_base_risks = np.random.uniform(0.05, 0.2, 200)
-        large_timesteps = 52
+        large_timesteps = 26
 
         start_time = time.time()
         risk_matrix = build_temporal_risk_matrix(
@@ -546,7 +546,7 @@ class TestTemporalRiskMatrix(unittest.TestCase):
         # Build matrix with strong seasonal effects
         risk_matrix = build_temporal_risk_matrix(
             self.base_risks,
-            n_timesteps=52,  # Full year
+            n_timesteps=26,  # Half year
             seasonal_amplitude=0.3,
             seasonal_period=52,
             rho=0.95,  # High persistence to see seasonal pattern

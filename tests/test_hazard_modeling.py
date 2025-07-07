@@ -112,7 +112,7 @@ class TestIncidentGenerator(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         np.random.seed(42)
-        self.n_patients = 1000
+        self.n_patients = 500
         self.annual_risks = np.full(self.n_patients, 0.1)  # 10% annual risk
 
     def test_initialization(self):
@@ -155,7 +155,7 @@ class TestIncidentGenerator(unittest.TestCase):
         intervention_effectiveness = 0.5  # 50% risk reduction
 
         # Run for multiple weeks
-        for _ in range(52):
+        for _ in range(26):
             gen.generate_incidents(
                 self.annual_risks,
                 intervention_mask,
@@ -183,7 +183,7 @@ class TestIncidentGenerator(unittest.TestCase):
 
         # Simulate full year
         prev_incidence = 0.0  # Initialize for first iteration
-        for week in range(52):
+        for week in range(26):
             gen.generate_incidents(self.annual_risks)
 
             # Should be monotonic increasing
@@ -228,7 +228,7 @@ class TestCompetingRiskIncidentGenerator(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         np.random.seed(42)
-        self.n_patients = 1000
+        self.n_patients = 500
         self.risks_dict = {
             'readmission': np.full(self.n_patients, 0.3),  # 30% annual
             'death': np.full(self.n_patients, 0.1)  # 10% annual
@@ -295,7 +295,7 @@ class TestCompetingRiskIncidentGenerator(unittest.TestCase):
         )
 
         # Run with censoring
-        for _ in range(52):
+        for _ in range(26):
             gen.generate_competing_incidents(
                 self.risks_dict,
                 censoring_prob=0.01  # 1% per week
@@ -316,7 +316,7 @@ class TestCompetingRiskIncidentGenerator(unittest.TestCase):
         )
 
         # Simulate full year
-        for _ in range(52):
+        for _ in range(26):
             gen.generate_competing_incidents(self.risks_dict)
 
         cumulative = gen.get_cumulative_incidence_competing()

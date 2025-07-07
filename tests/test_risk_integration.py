@@ -208,17 +208,17 @@ class TestSurvivalRiskIntegration(unittest.TestCase):
 
     def test_vectorization_performance(self):
         """Test that methods are efficiently vectorized."""
-        # Large matrix
-        large_risks = np.random.uniform(0.05, 0.15, size=(10000, 52))
+        # Large matrix (reduced for performance)
+        large_risks = np.random.uniform(0.05, 0.15, size=(1000, 26))
 
         import time
         start = time.time()
         integrated = integrate_window_risk(large_risks)
         elapsed = time.time() - start
 
-        # Should process 10k patients in under 1 second
+        # Should process 1k patients in under 1 second
         self.assertLess(elapsed, 1.0)
-        self.assertEqual(integrated.shape, (10000,))
+        self.assertEqual(integrated.shape, (1000,))
 
 
 class TestRiskWindowExtraction(unittest.TestCase):

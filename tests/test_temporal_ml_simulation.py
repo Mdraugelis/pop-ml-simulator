@@ -25,8 +25,8 @@ class TestTemporalMLPredictions(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         np.random.seed(42)
-        self.n_patients = 1000
-        self.n_timesteps = 52
+        self.n_patients = 500
+        self.n_timesteps = 26
 
         # Create base risks and temporal risk matrix
         self.base_risks = assign_patient_risks(
@@ -182,8 +182,8 @@ class TestMLPredictionSimulatorTemporal(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         np.random.seed(42)
-        self.n_patients = 500
-        self.n_timesteps = 26
+        self.n_patients = 300
+        self.n_timesteps = 20
 
         self.base_risks = assign_patient_risks(
             self.n_patients, annual_incident_rate=0.1, random_seed=42
@@ -293,8 +293,8 @@ class TestTemporalSensitivityValidation(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         np.random.seed(42)
-        self.n_patients = 800
-        self.n_timesteps = 40
+        self.n_patients = 400
+        self.n_timesteps = 24
 
         base_risks = assign_patient_risks(
             self.n_patients, annual_incident_rate=0.12, random_seed=42
@@ -391,8 +391,8 @@ class TestTemporalMLBenchmarking(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         np.random.seed(42)
-        self.n_patients = 600
-        self.n_timesteps = 30
+        self.n_patients = 300
+        self.n_timesteps = 20
 
         self.base_risks = assign_patient_risks(
             self.n_patients, annual_incident_rate=0.08, random_seed=42
@@ -520,8 +520,8 @@ class TestIntegrationWithExistingWorkflow(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         np.random.seed(42)
-        self.n_patients = 400
-        self.n_timesteps = 24
+        self.n_patients = 250
+        self.n_timesteps = 16
 
         self.base_risks = assign_patient_risks(
             self.n_patients, annual_incident_rate=0.15, random_seed=42

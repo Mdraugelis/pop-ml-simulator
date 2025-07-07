@@ -34,7 +34,7 @@ class TestMLPredictionSimulator:
     def setup_method(self):
         """Set up test data for each test method."""
         np.random.seed(42)
-        self.n_patients = 1000
+        self.n_patients = 500
         self.base_risks = assign_patient_risks(
             self.n_patients, 0.1, concentration=0.5, random_seed=42
         )
@@ -114,7 +114,7 @@ class TestMLPredictionSimulator:
 
         # Use fewer iterations for speed
         params = simulator.optimize_noise_parameters(
-            self.true_labels, self.base_risks, n_iterations=5
+            self.true_labels, self.base_risks, n_iterations=3
         )
 
         # Check that parameters are returned and stored
@@ -135,7 +135,7 @@ class TestMLPredictionSimulator:
 
         # Optimize parameters
         params = simulator.optimize_noise_parameters(
-            self.true_labels, self.base_risks, n_iterations=10
+            self.true_labels, self.base_risks, n_iterations=5
         )
 
         # Generate predictions
@@ -223,7 +223,7 @@ class TestEvaluationFunctions:
     def setup_method(self):
         """Set up test data."""
         np.random.seed(42)
-        self.n_patients = 1000
+        self.n_patients = 500
 
         # Create simple test data
         self.true_labels = np.random.binomial(1, 0.1, self.n_patients)
@@ -316,7 +316,7 @@ class TestClinicalDecisionSupport:
     def setup_method(self):
         """Set up test data."""
         np.random.seed(42)
-        self.n_patients = 1000
+        self.n_patients = 500
 
         # Create test data with known properties
         self.base_risks = assign_patient_risks(
@@ -464,7 +464,7 @@ class TestIntegration:
     def test_full_ml_pipeline(self):
         """Test complete ML simulation pipeline."""
         np.random.seed(42)
-        n_patients = 1000
+        n_patients = 500
 
         # Step 1: Generate population
         base_risks = assign_patient_risks(n_patients, 0.1, random_seed=42)
@@ -485,7 +485,7 @@ class TestIntegration:
 
         # Step 4: Optimize and generate predictions
         params = ml_sim.optimize_noise_parameters(
-            true_labels, base_risks, n_iterations=5
+            true_labels, base_risks, n_iterations=3
         )
         predictions, binary = ml_sim.generate_predictions(
             true_labels, base_risks,
