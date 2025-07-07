@@ -437,7 +437,6 @@ class MLPredictionSimulator:
         # Calculate temporal correlation metrics
         n_patients, n_timesteps = temporal_risk_matrix.shape
         integration_info = {
-            'integration_method': 'survival',
             'window_start': prediction_start_time,
             'window_length': prediction_window_length,
             'mean_integrated_risk': float(np.mean(integrated_risks)),
@@ -474,7 +473,8 @@ class MLPredictionSimulator:
 
         integration_info['integration_correlation'] = integration_correlation
 
-        return predictions, binary_predictions, integration_info
+        # Type annotation is correct - dict contains int and float values
+        return predictions, binary_predictions, integration_info  # type:ignore
 
 
 @log_call
@@ -755,7 +755,8 @@ def generate_temporal_ml_predictions(
     random_seed: Optional[int] = None
 ) -> Tuple[np.ndarray, np.ndarray, Dict[str, object]]:
     """
-    Generate ML predictions using integrated temporal window risks.
+    Generate ML predictions using survival-based integration of temporal window
+    risks.
 
     This function represents the core temporal-aware ML prediction approach
     that integrates risk trajectories over prediction windows instead of
@@ -857,7 +858,8 @@ def generate_temporal_ml_predictions(
         true_labels, integrated_risks, n_iterations=15
     )
 
-    # Generate ML predictions using integrated temporal risks
+    # Generate ML predictions using survival-based integration of temporal
+    # risks
     predictions, binary_predictions = ml_simulator.generate_predictions(
         true_labels,
         integrated_risks,
@@ -900,7 +902,6 @@ def generate_temporal_ml_predictions(
         'temporal_correlation': temporal_correlation,
         'integrated_risk_correlation': integrated_correlation,
         'mean_integrated_risk': float(np.mean(integrated_risks)),
-        'integration_method': 'survival',
         'window_length': prediction_window_length,
         'optimization_correlation': optimization_params['correlation'],
         'optimization_scale': optimization_params['scale']
@@ -1108,7 +1109,6 @@ def benchmark_temporal_ml_performance(
                 'config_id': config_id,
                 'start_time': config['start_time'],
                 'window_length': config['window_length'],
-                'integration_method': 'survival',
                 'temporal_sensitivity': temporal_metrics['sensitivity'],
                 'temporal_ppv': temporal_metrics['ppv'],
                 'temporal_f1': temporal_metrics['f1'],
@@ -1136,7 +1136,6 @@ def benchmark_temporal_ml_performance(
                 'config_id': config_id,
                 'start_time': config['start_time'],
                 'window_length': config['window_length'],
-                'integration_method': 'survival',
                 'error': str(e)
             }
             results.append(result)
