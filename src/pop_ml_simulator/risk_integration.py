@@ -11,7 +11,9 @@ import warnings
 
 def integrate_window_risk(
     window_risks: np.ndarray,
-    timestep_duration: float = 1/52
+    timestep_duration: float = 1/52,
+    add_integration_noise: bool = True,
+    noise_scale: float = 0.1
 ) -> np.ndarray:
     """
     Convert temporal risk trajectory over window to single risk prediction.
@@ -26,6 +28,10 @@ def integrate_window_risk(
         Shape: (n_patients, window_length) or (window_length,) for single
     timestep_duration : float, default=1/52
         Duration of each timestep as fraction of year (e.g., 1/52 for weekly)
+    add_integration_noise : bool, default=True
+        Whether to add patient-specific noise to reduce deterministic output
+    noise_scale : float, default=0.1
+        Scale of noise to add (if add_integration_noise=True)
 
     Returns
     -------
@@ -81,6 +87,12 @@ def integrate_window_risk(
 
     # Convert back to probability: P = 1 - exp(-H)
     integrated_risks = 1 - np.exp(-cumulative_hazard)
+
+    # Add patient-specific noise to reduce deterministic output
+    if add_integration_noise:
+        # Add noise proportional to the risk level to maintain realism
+        noise = np.random.normal(0, noise_scale * integrated_risks)
+        integrated_risks = integrated_risks + noise
 
     # Final validation
     integrated_risks = np.clip(integrated_risks, 0.0, 1.0)

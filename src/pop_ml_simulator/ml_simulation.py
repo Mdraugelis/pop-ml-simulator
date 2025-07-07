@@ -232,14 +232,18 @@ class MLPredictionSimulator:
         noisy_scores = (noise_correlation * base_scores +
                         (1 - noise_correlation) * noise)
 
-        # Add label-dependent noise (true positives get boost)
+        # Add reduced label-dependent noise to avoid perfect separation
+        # Reduced from 0.2/-0.1 to 0.05/-0.025 to prevent overconfidence
         label_noise = np.where(
             true_labels == 1,
-            np.random.normal(0.2, 0.1, n_patients),
-            np.random.normal(-0.1, 0.1, n_patients)
+            np.random.normal(0.05, 0.05, n_patients),
+            np.random.normal(-0.025, 0.05, n_patients)
         )
 
-        noisy_scores += label_noise * noise_scale
+        # Add risk-independent noise component for more variability
+        independent_noise = np.random.normal(0, 0.1, n_patients)
+
+        noisy_scores += (label_noise + independent_noise) * noise_scale
 
         # Apply calibration
         predictions = self._apply_calibration(noisy_scores)
@@ -272,9 +276,17 @@ class MLPredictionSimulator:
                 sensitivity = tp / (tp + fn)
                 ppv = tp / (tp + fp) if (tp + fp) > 0 else 0
 
-                # Score based on distance from targets
-                score = (abs(sensitivity - self.target_sensitivity) +
-                         abs(ppv - self.target_ppv))
+                # Score based on distance from targets with penalties
+                # Weight PPV more heavily and penalize extreme sensitivity
+                sens_penalty = abs(sensitivity - self.target_sensitivity)
+                ppv_penalty = abs(ppv - self.target_ppv) * 1.5  # Weight PPV
+
+                # Add penalty for extreme sensitivity (>0.95)
+                extreme_sens_penalty = 0
+                if sensitivity > 0.95:
+                    extreme_sens_penalty = (sensitivity - 0.95) * 10
+
+                score = sens_penalty + ppv_penalty + extreme_sens_penalty
 
                 if score < best_score:
                     best_score = score
@@ -841,9 +853,25 @@ def generate_temporal_ml_predictions(
     if random_seed is not None:
         np.random.seed(random_seed)
 
-    # Create labels with some randomness but correlated with integrated risks
-    label_probabilities = integrated_risks * 1.2  # Slight amplification
-    label_probabilities = np.clip(label_probabilities, 0.01, 0.95)
+    # Create labels with sigmoid transformation and patient-specific noise
+    # to reduce deterministic correlation with integrated risks
+
+    # Add patient-specific noise to break direct correlation
+    patient_noise = np.random.normal(0, 0.3, len(integrated_risks))
+    noisy_risks = integrated_risks + patient_noise
+
+    # Use sigmoid transformation with temperature for more stochastic labels
+    temperature = 2.0  # Controls randomness (higher = more random)
+    sigmoid_input = (noisy_risks - 0.5) * temperature
+    label_probabilities = 1 / (1 + np.exp(-sigmoid_input))
+
+    # Add base randomness to prevent perfect correlation
+    base_randomness = 0.2
+    label_probabilities = ((1 - base_randomness) * label_probabilities +
+                           base_randomness * np.random.uniform(
+                               0, 1, len(integrated_risks)))
+
+    label_probabilities = np.clip(label_probabilities, 0.05, 0.95)
     true_labels = np.random.binomial(1, label_probabilities)
 
     # Create ML prediction simulator
