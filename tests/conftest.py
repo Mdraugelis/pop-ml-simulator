@@ -5,17 +5,22 @@ This module provides shared fixtures to reduce test setup time and
 avoid redundant computations across test modules.
 """
 
-import pytest
-import numpy as np
-import sys
 import os
+import sys
+
+import numpy as np
+import pytest
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from pop_ml_simulator.risk_distribution import assign_patient_risks
-from pop_ml_simulator.temporal_dynamics import build_temporal_risk_matrix
-from pop_ml_simulator.hazard_modeling import IncidentGenerator
+from pop_ml_simulator.risk_distribution import (  # noqa: E402
+    assign_patient_risks
+)
+from pop_ml_simulator.temporal_dynamics import (  # noqa: E402
+    build_temporal_risk_matrix
+)
+from pop_ml_simulator.hazard_modeling import IncidentGenerator  # noqa: E402
 
 
 @pytest.fixture(scope="session")
@@ -93,16 +98,16 @@ def incident_generator():
     return IncidentGenerator(timestep_duration=1/52)
 
 
-@pytest.fixture(scope="session") 
+@pytest.fixture(scope="session")
 def small_incident_labels(small_patient_risks, incident_generator):
     """Pre-computed incident labels for small dataset."""
     np.random.seed(42)
     true_labels = np.zeros(len(small_patient_risks), dtype=int)
-    
+
     for _ in range(12):  # 12 weeks
         incidents = incident_generator.generate_incidents(small_patient_risks)
         true_labels |= incidents
-    
+
     return true_labels
 
 
@@ -111,11 +116,11 @@ def medium_incident_labels(medium_patient_risks, incident_generator):
     """Pre-computed incident labels for medium dataset."""
     np.random.seed(42)
     true_labels = np.zeros(len(medium_patient_risks), dtype=int)
-    
+
     for _ in range(26):  # 26 weeks
         incidents = incident_generator.generate_incidents(medium_patient_risks)
         true_labels |= incidents
-    
+
     return true_labels
 
 
@@ -124,11 +129,11 @@ def large_incident_labels(large_patient_risks, incident_generator):
     """Pre-computed incident labels for large dataset."""
     np.random.seed(42)
     true_labels = np.zeros(len(large_patient_risks), dtype=int)
-    
-    for _ in range(26):  # 26 weeks  
+
+    for _ in range(26):  # 26 weeks
         incidents = incident_generator.generate_incidents(large_patient_risks)
         true_labels |= incidents
-    
+
     return true_labels
 
 
