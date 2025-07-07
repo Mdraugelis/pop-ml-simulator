@@ -12,7 +12,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 NOTEBOOKS_DIR = os.path.join(os.path.dirname(__file__), '..', 'notebooks')
-TIMEOUT = 300  # 5 minutes timeout per notebook
+TIMEOUT = 60  # 1 minute timeout per notebook
 
 
 def get_notebook_paths():
@@ -41,7 +41,9 @@ def execute_notebook(notebook_path):
         timeout=TIMEOUT,
         kernel_name='python3',
         # Allow stderr output (for logging)
-        allow_errors=False
+        allow_errors=False,
+        # Store outputs to avoid memory bloat
+        store_widget_state=False
     )
 
     try:

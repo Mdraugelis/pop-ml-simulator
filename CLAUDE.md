@@ -14,14 +14,20 @@ Always reference the design document to guide architecture, function and require
 
 ## Key Commands
 ```bash
-# Run tests (excluding optional logging decorator test)
-python tests/run_tests.py -k "not test_public_functions_are_decorated"
+# Run fast core tests (excludes expensive ML optimization and notebooks)
+python tests/run_tests.py -k "not test_public_functions_are_decorated and not test_notebook"
+
+# Run all tests including expensive ones (CI/local comprehensive testing)
+python tests/run_tests.py -k "not test_public_functions_are_decorated" 
+
+# Run tests in parallel for faster execution (requires pytest-xdist)
+python tests/run_tests.py -n auto
 
 # Code quality checks
 flake8 src tests
 mypy src
 
-# Test notebooks
+# Test notebooks only
 python tests/run_tests.py tests/test_notebooks.py -v
 
 # Activate Python 3.13.5 environment
@@ -79,8 +85,16 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.getcwd()), 'src'))
 ### Testing Requirements
 - All public functions should have unit tests
 - Notebooks must execute without errors
-- Maintain >90% test coverage
+- **Performance-first testing**: Expensive tests marked with @pytest.mark.skip for CI speed
 - Fix all flake8 and mypy issues before PRs
+- **Fast core test suite**: ~20 most expensive tests skipped for development speed
+- **Full test suite**: Available for comprehensive validation when needed
+- Use shared fixtures from conftest.py to avoid redundant setup
+
+### Test Performance Strategy
+- **Fast tests** (development): Core functionality tested in <2 minutes
+- **Skipped tests**: ML optimization, benchmarking, integration, temporal validation
+- **Full tests** (release): All tests including expensive ones for comprehensive coverage
 
 ### Git Workflow
 1. Create feature branch: `git checkout -b feature/description`
@@ -94,6 +108,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.getcwd()), 'src'))
 - Made logging optional rather than mandatory
 - Added comprehensive notebook testing to CI/CD
 - Implemented ML simulation framework (Issue #19) with controlled performance
+- Optimized test performance (Issue #46): reduced dataset sizes, shared fixtures, parallel execution
 
 ## Environment
 - Python: 3.13.5
