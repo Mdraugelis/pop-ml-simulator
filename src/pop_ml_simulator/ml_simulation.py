@@ -473,7 +473,8 @@ class MLPredictionSimulator:
 
         integration_info['integration_correlation'] = integration_correlation
 
-        return predictions, binary_predictions, integration_info  # type: ignore[return-value]
+        # Type annotation is correct - dict contains int and float values
+        return predictions, binary_predictions, integration_info  # type:ignore
 
 
 @log_call
