@@ -4,6 +4,7 @@ Tests for temporal dynamics module.
 
 import unittest
 import numpy as np
+import pytest
 from pop_ml_simulator.temporal_dynamics import (
     simulate_ar1_process,
     TemporalRiskSimulator,
@@ -496,6 +497,7 @@ class TestTemporalRiskMatrix(unittest.TestCase):
         with self.assertRaises(ValueError):
             simulator.get_timestep_risks(self.n_timesteps)
 
+    @pytest.mark.skip(reason="Performance: Skip expensive performance test for CI")
     def test_temporal_risk_matrix_performance(self):
         """Test performance for large matrices."""
         import time

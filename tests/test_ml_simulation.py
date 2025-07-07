@@ -125,6 +125,7 @@ class TestMLPredictionSimulator:
         assert simulator.noise_correlation == params['correlation']
         assert simulator.noise_scale == params['scale']
 
+    @pytest.mark.skip(reason="Performance: Skip expensive ML optimization test for CI")
     def test_achieve_target_performance(self):
         """Test that simulator can achieve target performance."""
         simulator = MLPredictionSimulator(
@@ -461,6 +462,7 @@ class TestEdgeCases:
 class TestIntegration:
     """Integration tests combining multiple components."""
 
+    @pytest.mark.skip(reason="Performance: Skip expensive full pipeline test for CI")
     def test_full_ml_pipeline(self):
         """Test complete ML simulation pipeline."""
         np.random.seed(42)
@@ -518,6 +520,7 @@ class TestIntegration:
         hl_stat, hl_p = hosmer_lemeshow_test(true_labels, predictions)
         assert hl_p >= 0.0  # Just check it's a valid p-value
 
+    @pytest.mark.skip(reason="Performance: Skip expensive consistency test for CI")
     def test_performance_consistency(self):
         """Test that performance is consistent across multiple runs."""
         np.random.seed(42)

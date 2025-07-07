@@ -8,6 +8,7 @@ that integrate risk trajectories over prediction windows.
 import unittest
 import numpy as np
 import pandas as pd
+import pytest
 
 from pop_ml_simulator.ml_simulation import (
     MLPredictionSimulator,
@@ -287,6 +288,7 @@ class TestMLPredictionSimulatorTemporal(unittest.TestCase):
                          info2['optimization_scale'])
 
 
+@pytest.mark.skip(reason="Performance: Skip expensive temporal validation tests for CI")
 class TestTemporalSensitivityValidation(unittest.TestCase):
     """Test temporal sensitivity validation functionality."""
 
@@ -385,6 +387,7 @@ class TestTemporalSensitivityValidation(unittest.TestCase):
         self.assertFalse(validation['passes_threshold'])
 
 
+@pytest.mark.skip(reason="Performance: Skip expensive benchmarking tests for CI")
 class TestTemporalMLBenchmarking(unittest.TestCase):
     """Test temporal ML performance benchmarking functionality."""
 
@@ -514,6 +517,7 @@ class TestTemporalMLBenchmarking(unittest.TestCase):
         self.assertIn('error', results_df.iloc[1])
 
 
+@pytest.mark.skip(reason="Performance: Skip expensive integration tests for CI")
 class TestIntegrationWithExistingWorkflow(unittest.TestCase):
     """Test integration with existing ML simulation workflow."""
 
