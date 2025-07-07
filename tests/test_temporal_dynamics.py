@@ -85,7 +85,7 @@ class TestTemporalRiskSimulator(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         np.random.seed(42)
-        self.n_patients = 50
+        self.n_patients = 100
         self.base_risks = np.random.uniform(0.05, 0.2, self.n_patients)
 
     def test_initialization(self):
@@ -183,7 +183,7 @@ class TestEnhancedTemporalRiskSimulator(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         np.random.seed(42)
-        self.n_patients = 50
+        self.n_patients = 100
         self.base_risks = np.random.uniform(0.05, 0.2, self.n_patients)
 
     def test_initialization(self):
@@ -353,7 +353,7 @@ class TestTemporalRiskMatrix(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         np.random.seed(42)
-        self.n_patients = 50
+        self.n_patients = 100
         self.n_timesteps = 12
         self.base_risks = np.random.uniform(0.05, 0.2, self.n_patients)
 

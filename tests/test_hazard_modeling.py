@@ -112,7 +112,7 @@ class TestIncidentGenerator(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         np.random.seed(42)
-        self.n_patients = 500
+        self.n_patients = 800
         self.annual_risks = np.full(self.n_patients, 0.1)  # 10% annual risk
 
     def test_initialization(self):
@@ -228,7 +228,7 @@ class TestCompetingRiskIncidentGenerator(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         np.random.seed(42)
-        self.n_patients = 500
+        self.n_patients = 800
         self.risks_dict = {
             'readmission': np.full(self.n_patients, 0.3),  # 30% annual
             'death': np.full(self.n_patients, 0.1)  # 10% annual

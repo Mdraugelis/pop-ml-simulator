@@ -34,7 +34,7 @@ class TestMLPredictionSimulator:
     def setup_method(self):
         """Set up test data for each test method."""
         np.random.seed(42)
-        self.n_patients = 500
+        self.n_patients = 800
         self.base_risks = assign_patient_risks(
             self.n_patients, 0.1, concentration=0.5, random_seed=42
         )
@@ -223,7 +223,7 @@ class TestEvaluationFunctions:
     def setup_method(self):
         """Set up test data."""
         np.random.seed(42)
-        self.n_patients = 500
+        self.n_patients = 800
 
         # Create simple test data
         self.true_labels = np.random.binomial(1, 0.1, self.n_patients)
@@ -316,7 +316,7 @@ class TestClinicalDecisionSupport:
     def setup_method(self):
         """Set up test data."""
         np.random.seed(42)
-        self.n_patients = 500
+        self.n_patients = 800
 
         # Create test data with known properties
         self.base_risks = assign_patient_risks(
