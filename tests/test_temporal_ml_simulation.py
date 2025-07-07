@@ -97,8 +97,6 @@ class TestTemporalMLPredictions(unittest.TestCase):
 
         # Check that method produces valid results
         self.assertEqual(len(preds), self.n_patients)
-        self.assertIn('integration_method', metrics)
-        self.assertEqual(metrics['integration_method'], 'survival')
 
         # Check that predictions are valid probabilities
         self.assertTrue(np.all(preds >= 0))
@@ -214,23 +212,18 @@ class TestMLPredictionSimulatorTemporal(unittest.TestCase):
             prediction_window_length=6
         )
 
-        # Verify integration method is correctly set to survival
-        self.assertEqual(info['integration_method'], 'survival')
-
         # Check outputs
         self.assertEqual(preds.shape, (self.n_patients,))
         self.assertEqual(binary.shape, (self.n_patients,))
         self.assertIsInstance(info, dict)
 
         # Check info content
-        self.assertIn('integration_method', info)
         self.assertIn('window_start', info)
         self.assertIn('window_length', info)
         self.assertIn('temporal_correlation', info)
         self.assertIn('integration_correlation', info)
 
         # Verify values
-        self.assertEqual(info['integration_method'], 'survival')
         self.assertEqual(info['window_start'], 8)
         self.assertEqual(info['window_length'], 6)
 
@@ -260,8 +253,6 @@ class TestMLPredictionSimulatorTemporal(unittest.TestCase):
         self.assertTrue(np.all(preds2 >= 0) and np.all(preds2 <= 1))
 
         # Info should be consistently structured
-        self.assertEqual(info1['integration_method'], 'survival')
-        self.assertEqual(info2['integration_method'], 'survival')
         self.assertEqual(info1['window_start'], info2['window_start'])
         self.assertEqual(info1['window_length'], info2['window_length'])
 
@@ -442,7 +433,7 @@ class TestTemporalMLBenchmarking(unittest.TestCase):
 
         # Check expected columns exist
         expected_cols = [
-            'config_id', 'start_time', 'window_length', 'integration_method',
+            'config_id', 'start_time', 'window_length',
             'temporal_sensitivity', 'temporal_ppv', 'temporal_f1',
             'static_sensitivity', 'static_ppv', 'static_f1'
         ]
@@ -455,8 +446,6 @@ class TestTemporalMLBenchmarking(unittest.TestCase):
             row = results_df.iloc[i]
             self.assertEqual(row['start_time'], config['start_time'])
             self.assertEqual(row['window_length'], config['window_length'])
-            # Integration method should always be 'survival' now
-            self.assertEqual(row['integration_method'], 'survival')
 
     def test_benchmark_comparison_temporal_vs_static(self):
         """Test that benchmark compares temporal vs static approaches."""
@@ -474,9 +463,7 @@ class TestTemporalMLBenchmarking(unittest.TestCase):
             random_seed=42
         )
 
-        # Verify integration method is always set to survival
         row = results_df.iloc[0]
-        self.assertEqual(row['integration_method'], 'survival')
 
         # Both temporal and static should have reasonable performance
         self.assertGreater(row['temporal_sensitivity'], 0.1)
