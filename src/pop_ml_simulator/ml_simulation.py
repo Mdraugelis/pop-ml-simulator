@@ -473,7 +473,7 @@ class MLPredictionSimulator:
 
         integration_info['integration_correlation'] = integration_correlation
 
-        return predictions, binary_predictions, integration_info
+        return predictions, binary_predictions, integration_info  # type: ignore[return-value]
 
 
 @log_call
