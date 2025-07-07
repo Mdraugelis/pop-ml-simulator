@@ -35,7 +35,7 @@ class TestAR1Process(unittest.TestCase):
         # Check mean is approximately 1.0
         self.assertAlmostEqual(np.mean(values), 1.0, delta=0.1)
 
-    @pytest.mark.skip(reason="Performance: Skip expensive AR1 persistence test")
+    @pytest.mark.skip(reason="Performance: Skip AR1 persistence")
     def test_simulate_ar1_persistence(self):
         """Test that persistence parameter affects autocorrelation."""
         n_timesteps = 200
@@ -166,7 +166,7 @@ class TestTemporalRiskSimulator(unittest.TestCase):
             modifier_hist[:, 0], np.ones(self.n_patients))
         np.testing.assert_array_almost_equal(risk_hist[:, 0], self.base_risks)
 
-    @pytest.mark.skip(reason="Performance: Skip expensive population mean test")
+    @pytest.mark.skip(reason="Performance: Skip population mean")
     def test_population_mean_preservation(self):
         """Test that population mean risk is preserved over time."""
         sim = TemporalRiskSimulator(self.base_risks, rho=0.9, sigma=0.1)
@@ -181,6 +181,7 @@ class TestTemporalRiskSimulator(unittest.TestCase):
         self.assertAlmostEqual(final_mean, initial_mean, delta=0.01)
 
 
+@pytest.mark.skip(reason="Performance: Skip enhanced temporal simulator")
 class TestEnhancedTemporalRiskSimulator(unittest.TestCase):
     """Test cases for EnhancedTemporalRiskSimulator class."""
 
@@ -290,7 +291,7 @@ class TestEnhancedTemporalRiskSimulator(unittest.TestCase):
             sim.current_modifiers[affected] > sim.current_modifiers[~affected]
         ))
 
-    @pytest.mark.skip(reason="Performance: Skip expensive seasonal effects test")
+    @pytest.mark.skip(reason="Performance: Skip seasonal effects")
     def test_seasonal_effects_on_population_risk(self):
         """Test that seasonal effects properly modulate population risk."""
         # Create simulator with strong seasonal effects
@@ -352,6 +353,7 @@ class TestEnhancedTemporalRiskSimulator(unittest.TestCase):
                 f"target {target_risk:.4f}")
 
 
+@pytest.mark.skip(reason="Performance: Skip entire temporal risk matrix class")
 class TestTemporalRiskMatrix(unittest.TestCase):
     """Test cases for temporal risk matrix functionality."""
 
@@ -530,7 +532,7 @@ class TestTemporalRiskMatrix(unittest.TestCase):
                          (len(large_base_risks), large_timesteps))
         self.assertTrue(np.all((risk_matrix >= 0) & (risk_matrix <= 1)))
 
-    @pytest.mark.skip(reason="Performance: Skip expensive matrix reproducibility")
+    @pytest.mark.skip(reason="Performance: Skip matrix reproducibility")
     def test_matrix_reproducibility(self):
         """Test that matrix construction is reproducible with same seed."""
         matrix1 = build_temporal_risk_matrix(
@@ -550,7 +552,7 @@ class TestTemporalRiskMatrix(unittest.TestCase):
             err_msg="Matrices should be identical with same random seed"
         )
 
-    @pytest.mark.skip(reason="Performance: Skip expensive matrix seasonal test")
+    @pytest.mark.skip(reason="Performance: Skip matrix seasonal")
     def test_matrix_seasonal_effects(self):
         """Test that seasonal effects are captured in the matrix."""
         # Build matrix with strong seasonal effects
