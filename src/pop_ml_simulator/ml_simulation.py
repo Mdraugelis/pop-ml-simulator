@@ -416,7 +416,7 @@ class MLPredictionSimulator:
         )
 
         # Integrate temporal risks over the window
-        # Disable integration noise since we use proper temporal event generation
+        # Disable integration noise since we use proper temporal event gen
         integrated_risks = integrate_window_risk(
             risk_windows,
             timestep_duration=timestep_duration,
