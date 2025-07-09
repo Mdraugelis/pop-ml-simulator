@@ -235,14 +235,18 @@ class MLPredictionSimulator:
         noisy_scores = (noise_correlation * base_scores +
                         (1 - noise_correlation) * noise)
 
-        # Add label-dependent noise (true positives get boost)
+        # Add reduced label-dependent noise to avoid perfect separation
+        # Reduced from 0.2/-0.1 to 0.05/-0.025 to prevent overconfidence
         label_noise = np.where(
             true_labels == 1,
-            np.random.normal(0.2, 0.1, n_patients),
-            np.random.normal(-0.1, 0.1, n_patients)
+            np.random.normal(0.05, 0.05, n_patients),
+            np.random.normal(-0.025, 0.05, n_patients)
         )
 
-        noisy_scores += label_noise * noise_scale
+        # Add risk-independent noise component for more variability
+        independent_noise = np.random.normal(0, 0.1, n_patients)
+
+        noisy_scores += (label_noise + independent_noise) * noise_scale
 
         # Apply calibration
         predictions = self._apply_calibration(noisy_scores)
@@ -275,9 +279,17 @@ class MLPredictionSimulator:
                 sensitivity = tp / (tp + fn)
                 ppv = tp / (tp + fp) if (tp + fp) > 0 else 0
 
-                # Score based on distance from targets
-                score = (abs(sensitivity - self.target_sensitivity) +
-                         abs(ppv - self.target_ppv))
+                # Score based on distance from targets with penalties
+                # Weight PPV more heavily and penalize extreme sensitivity
+                sens_penalty = abs(sensitivity - self.target_sensitivity)
+                ppv_penalty = abs(ppv - self.target_ppv) * 1.5  # Weight PPV
+
+                # Add penalty for extreme sensitivity (>0.95)
+                extreme_sens_penalty = 0
+                if sensitivity > 0.95:
+                    extreme_sens_penalty = (sensitivity - 0.95) * 10
+
+                score = sens_penalty + ppv_penalty + extreme_sens_penalty
 
                 if score < best_score:
                     best_score = score
@@ -938,7 +950,8 @@ def generate_temporal_ml_predictions(
     )
 
     # Generate ground truth labels using proper temporal event generation
-    # This ensures epidemiologically valid event rates
+    # This ensures epidemiologically valid event rates and respects the
+    # calibrated hazard model (Issues #56 and #57)
     event_matrix, event_times = generate_temporal_events(
         temporal_risk_matrix,
         timestep_duration=timestep_duration,

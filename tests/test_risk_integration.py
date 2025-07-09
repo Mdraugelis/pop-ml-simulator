@@ -39,7 +39,8 @@ class TestSurvivalRiskIntegration(unittest.TestCase):
         """Test survival-based integration method."""
         # Single patient constant risk
         single_risk = np.array([0.1, 0.1, 0.1, 0.1])
-        integrated = integrate_window_risk(single_risk)
+        integrated = integrate_window_risk(single_risk,
+                                           add_integration_noise=False)
 
         # For constant risk, integrated should be higher than single period
         self.assertGreater(integrated, 0.1)
