@@ -10,7 +10,7 @@ A healthcare simulation framework for modeling patient populations, risk distrib
 - Competing risks and censoring models
 - ML prediction simulation with controlled performance
 
-Always reference the design document to guide architecture, function and requirements `docs/Healthcare_Sim_Design.md/`
+Always reference the design document to guide architecture, function and requirements `docs/Healthcare_Sim_Design.md`
 
 ## Key Commands
 ```bash
