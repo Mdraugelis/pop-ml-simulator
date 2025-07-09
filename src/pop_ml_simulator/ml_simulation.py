@@ -416,9 +416,11 @@ class MLPredictionSimulator:
         )
 
         # Integrate temporal risks over the window
+        # Disable integration noise since we use proper temporal event generation
         integrated_risks = integrate_window_risk(
             risk_windows,
-            timestep_duration=timestep_duration
+            timestep_duration=timestep_duration,
+            add_integration_noise=False
         )
 
         # Generate realistic labels using proper temporal event generation
@@ -944,9 +946,11 @@ def generate_temporal_ml_predictions(
     )
 
     # Integrate temporal risks over the window
+    # Disable integration noise since we use proper temporal event generation
     integrated_risks = integrate_window_risk(
         risk_windows,
-        timestep_duration=timestep_duration
+        timestep_duration=timestep_duration,
+        add_integration_noise=False
     )
 
     # Generate ground truth labels using proper temporal event generation
