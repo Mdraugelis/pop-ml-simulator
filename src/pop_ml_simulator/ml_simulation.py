@@ -13,6 +13,9 @@ from sklearn.metrics import roc_auc_score, confusion_matrix  # type: ignore
 from typing import Optional, Dict, List, Tuple, Union
 from utils.logging import log_call
 from .risk_integration import integrate_window_risk, extract_risk_windows
+from .hazard_modeling import (
+    annual_risk_to_hazard, hazard_to_timestep_probability
+)
 
 
 @log_call
@@ -406,14 +409,23 @@ class MLPredictionSimulator:
             timestep_duration=timestep_duration
         )
 
-        # Generate realistic labels based on integrated risks
-        if self.random_seed is not None:
-            np.random.seed(self.random_seed)
+        # Generate realistic labels using proper temporal event generation
+        n_patients, n_timesteps = temporal_risk_matrix.shape
+        event_matrix, event_times = generate_temporal_events(
+            temporal_risk_matrix,
+            timestep_duration=timestep_duration,
+            random_seed=self.random_seed
+        )
 
-        # Create labels correlated with integrated risks
-        label_probabilities = integrated_risks * 1.3  # Amplify for realism
-        label_probabilities = np.clip(label_probabilities, 0.01, 0.95)
-        true_labels = np.random.binomial(1, label_probabilities)
+        # Extract labels for the prediction window
+        window_end = prediction_start_time + prediction_window_length
+        true_labels = np.zeros(n_patients, dtype=int)
+
+        for i in range(n_patients):
+            if event_times[i] >= 0:  # Patient has an event
+                # Check if event occurs within the prediction window
+                if prediction_start_time <= event_times[i] < window_end:
+                    true_labels[i] = 1
 
         # Optimize parameters for this specific temporal scenario
         if self.noise_correlation is None or self.noise_scale is None:
@@ -745,6 +757,95 @@ def analyze_risk_stratified_performance(
 
 
 @log_call
+def generate_temporal_events(
+    temporal_risk_matrix: np.ndarray,
+    timestep_duration: float = 1/52,
+    random_seed: Optional[int] = None
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Generate temporal events using proper hazard-based simulation.
+
+    This function generates events across the entire temporal period using
+    the hazard modeling approach, ensuring epidemiologically valid event
+    generation that respects the calibrated incidence rates.
+
+    Parameters
+    ----------
+    temporal_risk_matrix : np.ndarray
+        Complete temporal risk matrix, shape (n_patients, n_timesteps)
+    timestep_duration : float, default=1/52
+        Duration of each timestep as fraction of year
+    random_seed : int, optional
+        Random seed for reproducibility
+
+    Returns
+    -------
+    event_matrix : np.ndarray
+        Binary matrix indicating if event occurred by each timestep
+        Shape: (n_patients, n_timesteps)
+    event_times : np.ndarray
+        Time of first event for each patient (-1 if no event)
+        Shape: (n_patients,)
+
+    Notes
+    -----
+    This approach:
+    1. Converts annual risks to hazard rates
+    2. Converts hazards to timestep probabilities
+    3. Uses binomial sampling at each timestep
+    4. Tracks first event time (competing risk framework)
+    5. Ensures proper temporal correlation with risk trajectories
+    """
+    if random_seed is not None:
+        np.random.seed(random_seed)
+
+    n_patients, n_timesteps = temporal_risk_matrix.shape
+
+    # Initialize event tracking
+    event_matrix = np.zeros((n_patients, n_timesteps), dtype=bool)
+    event_times = np.full(n_patients, -1, dtype=int)
+    had_event = np.zeros(n_patients, dtype=bool)
+
+    # Generate events timestep by timestep
+    for t in range(n_timesteps):
+        # Get current risks for all patients
+        current_risks = temporal_risk_matrix[:, t]
+
+        # Convert to hazards then to timestep probabilities
+        current_hazards = annual_risk_to_hazard(current_risks)
+        timestep_probs = hazard_to_timestep_probability(
+            current_hazards, timestep_duration
+        )
+
+        # Only generate events for patients who haven't had one yet
+        eligible_mask = ~had_event
+
+        # Generate events using binomial sampling
+        if np.sum(eligible_mask) > 0:
+            # Ensure timestep_probs is ndarray for indexing
+            if isinstance(timestep_probs, np.ndarray):
+                eligible_probs = timestep_probs[eligible_mask]
+            else:
+                eligible_probs = np.array([timestep_probs])[eligible_mask]
+            new_events = np.random.binomial(
+                1, eligible_probs
+            ).astype(bool)
+        else:
+            new_events = np.array([], dtype=bool)
+
+        # Update event tracking for eligible patients
+        eligible_indices = np.where(eligible_mask)[0]
+        new_event_indices = eligible_indices[new_events]
+
+        if len(new_event_indices) > 0:
+            event_matrix[new_event_indices, t] = True
+            event_times[new_event_indices] = t
+            had_event[new_event_indices] = True
+
+    return event_matrix, event_times
+
+
+@log_call
 def generate_temporal_ml_predictions(
     temporal_risk_matrix: np.ndarray,
     prediction_start_time: int,
@@ -836,15 +937,25 @@ def generate_temporal_ml_predictions(
         timestep_duration=timestep_duration
     )
 
-    # Generate ground truth labels based on integrated risks
-    # For simulation purposes, we create realistic labels
-    if random_seed is not None:
-        np.random.seed(random_seed)
+    # Generate ground truth labels using proper temporal event generation
+    # This ensures epidemiologically valid event rates
+    event_matrix, event_times = generate_temporal_events(
+        temporal_risk_matrix,
+        timestep_duration=timestep_duration,
+        random_seed=random_seed
+    )
 
-    # Create labels with some randomness but correlated with integrated risks
-    label_probabilities = integrated_risks * 1.2  # Slight amplification
-    label_probabilities = np.clip(label_probabilities, 0.01, 0.95)
-    true_labels = np.random.binomial(1, label_probabilities)
+    # Extract labels for the prediction window
+    # A patient has a positive label if they will have an event during
+    # the prediction window
+    window_end = prediction_start_time + prediction_window_length
+    true_labels = np.zeros(n_patients, dtype=int)
+
+    for i in range(n_patients):
+        if event_times[i] >= 0:  # Patient has an event
+            # Check if event occurs within the prediction window
+            if prediction_start_time <= event_times[i] < window_end:
+                true_labels[i] = 1
 
     # Create ML prediction simulator
     ml_simulator = MLPredictionSimulator(
