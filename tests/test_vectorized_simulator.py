@@ -488,7 +488,9 @@ class TestVectorizedTemporalRiskSimulator:
 
         # Check intervention coverage
         total_interventions = small_simulator.results.intervention_matrix.nnz
-        expected_coverage = total_interventions / (10 * 12)
+        expected_coverage = total_interventions / (
+            small_simulator.n_patients * small_simulator.n_timesteps
+        )
         assert (
             small_simulator.results.intervention_coverage ==
             expected_coverage
