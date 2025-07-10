@@ -47,9 +47,72 @@ Healthcare AI systems promise to revolutionize patient care by identifying high-
 git clone https://github.com/Mdraugelis/pop-ml-simulator.git
 cd pop-ml-simulator
 pip install -r requirements.txt
+
+# Activate the Python 3.13.5 environment
+source .python-version-setup.sh
 ```
 
-### Basic Usage
+### Quick Test - Verify Installation
+
+```bash
+# Run the quick verification test
+python experiments/test_simulation.py
+```
+
+This will run a comprehensive test suite including basic functionality, full pipeline, performance benchmarks, and reproducibility checks.
+
+### VectorizedTemporalRiskSimulator - Complete Simulation Pipeline
+
+The framework now includes a unified `VectorizedTemporalRiskSimulator` that orchestrates the entire simulation pipeline:
+
+```python
+from pop_ml_simulator import VectorizedTemporalRiskSimulator
+
+# Create a complete healthcare AI intervention simulation
+simulator = VectorizedTemporalRiskSimulator(
+    n_patients=10000,
+    n_timesteps=52,  # 52 weeks (1 year)
+    annual_incident_rate=0.08,  # 8% annual incident rate
+    intervention_effectiveness=0.25,  # 25% risk reduction
+    random_seed=42
+)
+
+# Run complete simulation pipeline
+results = simulator.run_full_simulation(
+    prediction_times=[0, 12, 24, 36],  # Quarterly predictions
+    target_sensitivity=0.75,
+    target_ppv=0.35,
+    assignment_strategy="ml_threshold",
+    threshold=0.5,
+    generate_counterfactuals=True
+)
+
+# Get comprehensive statistics
+stats = simulator.get_summary_statistics()
+print(f"Total patients: {stats['n_patients']}")
+print(f"Total incidents: {stats['total_incidents']}")
+print(f"Incident reduction: {stats['incident_reduction']:.1%}")
+print(f"Intervention coverage: {stats['intervention_coverage']:.1%}")
+```
+
+### Configuration-Based Experiments
+
+Run complete experiments using Hydra configuration management:
+
+```bash
+# Run baseline simulation experiment
+python experiments/run_baseline_simulation.py
+
+# Or with custom parameters
+python experiments/run_baseline_simulation.py \
+    population.n_patients=50000 \
+    intervention.effectiveness=0.3 \
+    ml_model.target_ppv=0.4
+```
+
+### Individual Component Usage (Advanced)
+
+For advanced users who need fine-grained control:
 
 ```python
 import numpy as np
@@ -61,9 +124,8 @@ from pop_ml_simulator import (
 )
 
 # 1. Generate heterogeneous patient population
-n_patients = 10000
 base_risks = assign_patient_risks(
-    n_patients, 
+    n_patients=10000, 
     annual_incident_rate=0.1,
     concentration=0.5,  # Controls risk heterogeneity
     random_seed=42
@@ -75,17 +137,8 @@ temporal_sim = EnhancedTemporalRiskSimulator(
     rho=0.9,  # Persistence
     sigma=0.1,  # Volatility
     temporal_bounds=(0.2, 2.5),
-    max_risk_threshold=0.95,
     seasonal_amplitude=0.2,
     seasonal_period=52  # Weekly cycles
-)
-
-# Add external shock (e.g., flu season)
-temporal_sim.add_shock(
-    time_step=26, 
-    magnitude=1.5, 
-    duration=8,
-    affected_fraction=0.3
 )
 
 # 3. Generate realistic ML predictions
@@ -95,22 +148,12 @@ ml_sim = MLPredictionSimulator(
     random_seed=42
 )
 
-# 4. Simulate incidents and interventions
-incident_gen = IncidentGenerator(timestep_duration=1/52)
-true_labels = np.zeros(n_patients, dtype=int)
+# 4. Run simulation steps individually
+temporal_sim.simulate(51)  # Simulate 51 weeks
+risk_matrix = temporal_sim.get_risk_matrix()
 
-# Generate 6 months of training data
-for week in range(26):
-    incidents = incident_gen.generate_incidents(base_risks)
-    true_labels |= incidents
-
-# Generate calibrated ML predictions
-predictions, binary_preds = ml_sim.generate_predictions(
-    true_labels, base_risks
-)
-
-print(f"Population prevalence: {np.mean(true_labels):.1%}")
-print(f"ML PPV achieved: {np.mean(true_labels[binary_preds == 1]):.1%}")
+# Generate ML predictions and evaluate
+# ... (detailed component-level code)
 ```
 
 ## 📊 Framework Capabilities
@@ -369,10 +412,28 @@ print(f"Expected alert efficiency: {optimal_config['efficiency']:.1%}")
 
 ## 🧪 Testing and Validation
 
-### Run Test Suite
+### Quick Verification
+```bash
+# 🆕 Run quick functionality verification
+python experiments/test_simulation.py
+```
+
+This comprehensive test script validates:
+- Basic simulator functionality
+- Complete simulation pipeline
+- Summary statistics generation
+- Patient trajectory retrieval
+- Different assignment strategies (ML threshold, random, top-k)
+- Reproducibility with random seeds
+- Performance benchmarks
+
+### Full Test Suite
 ```bash
 # Run all tests
 python tests/run_tests.py -k "not test_public_functions_are_decorated"
+
+# Test the new vectorized simulator
+python tests/run_tests.py tests/test_vectorized_simulator.py -v
 
 # Code quality checks  
 flake8 src tests
@@ -398,9 +459,17 @@ pop-ml-simulator/
 │   ├── temporal_dynamics.py     # AR(1) temporal risk evolution
 │   ├── hazard_modeling.py       # Survival analysis & competing risks
 │   ├── ml_simulation.py         # ML prediction simulation
+│   ├── risk_integration.py      # Temporal risk window integration
+│   ├── vectorized_simulator.py  # 🆕 Unified simulation orchestrator
 │   └── __init__.py
+├── configs/
+│   └── baseline_simulation.yaml # 🆕 Hydra configuration for experiments
+├── experiments/                 # 🆕 Experiment runners and verification
+│   ├── run_baseline_simulation.py  # Full experiment with Hydra
+│   └── test_simulation.py          # Quick verification script
 ├── notebooks/                   # Interactive tutorials
 ├── tests/                       # Comprehensive test suite
+│   └── test_vectorized_simulator.py # 🆕 Tests for unified simulator
 ├── requirements.txt             # Dependencies
 ├── CLAUDE.md                    # AI assistant guide
 └── README.md                    # This file
@@ -468,6 +537,9 @@ Runtime: 14.2s ✓
 - [x] Temporal dynamics with AR(1) processes  
 - [x] Hazard-based incident generation
 - [x] ML prediction simulation with controlled performance
+- [x] **🆕 VectorizedTemporalRiskSimulator - Unified simulation orchestrator**
+- [x] **🆕 Configuration-based experiment framework with Hydra**
+- [x] **🆕 Comprehensive verification and testing infrastructure**
 - [x] Comprehensive test suite and validation
 
 ### Phase 2: Causal Inference Methods 🚧
