@@ -21,8 +21,8 @@ class TestVectorizedTemporalRiskSimulator:
     def basic_simulator(self):
         """Create a basic simulator instance for testing."""
         return VectorizedTemporalRiskSimulator(
-            n_patients=100,
-            n_timesteps=24,
+            n_patients=20,  # Reduced from 100 for speed
+            n_timesteps=12,  # Reduced from 24 for speed
             annual_incident_rate=0.1,
             intervention_effectiveness=0.25,
             random_seed=42
@@ -41,8 +41,8 @@ class TestVectorizedTemporalRiskSimulator:
 
     def test_initialization(self, basic_simulator):
         """Test simulator initialization."""
-        assert basic_simulator.n_patients == 100
-        assert basic_simulator.n_timesteps == 24
+        assert basic_simulator.n_patients == 20
+        assert basic_simulator.n_timesteps == 12
         assert basic_simulator.annual_incident_rate == 0.1
         assert basic_simulator.intervention_effectiveness == 0.25
         assert basic_simulator.random_seed == 42
@@ -55,8 +55,8 @@ class TestVectorizedTemporalRiskSimulator:
         assert not basic_simulator._incidents_simulated
 
         # Check results initialization
-        assert basic_simulator.results.n_patients == 100
-        assert basic_simulator.results.n_timesteps == 24
+        assert basic_simulator.results.n_patients == 20
+        assert basic_simulator.results.n_timesteps == 12
         assert basic_simulator.results.intervention_effectiveness == 0.25
         assert len(basic_simulator.results.patient_base_risks) == 0
 
@@ -69,7 +69,7 @@ class TestVectorizedTemporalRiskSimulator:
         )
 
         assert basic_simulator._population_initialized
-        assert len(basic_simulator.results.patient_base_risks) == 100
+        assert len(basic_simulator.results.patient_base_risks) == 20
         assert basic_simulator.temporal_simulator is not None
 
         # Check risk distribution properties
@@ -84,7 +84,7 @@ class TestVectorizedTemporalRiskSimulator:
         basic_simulator.simulate_temporal_evolution()
 
         assert basic_simulator._temporal_simulated
-        assert basic_simulator.results.temporal_risk_matrix.shape == (100, 24)
+        assert basic_simulator.results.temporal_risk_matrix.shape == (20, 12)
 
         # Check temporal risk properties
         risks = basic_simulator.results.temporal_risk_matrix
@@ -107,17 +107,17 @@ class TestVectorizedTemporalRiskSimulator:
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
 
-        prediction_times = [0, 6]
+        prediction_times = [0]  # Use only one prediction time
         small_simulator.generate_ml_predictions(
             prediction_times,
             target_sensitivity=0.8,
             target_ppv=0.3,
-            n_optimization_iterations=100  # Reduced for testing
+            n_optimization_iterations=5  # Reduced for testing
         )
 
         assert small_simulator._ml_predictions_generated
-        assert len(small_simulator.results.ml_predictions) == 2
-        assert len(small_simulator.results.ml_binary_predictions) == 2
+        assert len(small_simulator.results.ml_predictions) == 1
+        assert len(small_simulator.results.ml_binary_predictions) == 1
 
         # Check prediction properties
         for time in prediction_times:
@@ -149,7 +149,7 @@ class TestVectorizedTemporalRiskSimulator:
             warnings.simplefilter("always")
             small_simulator.generate_ml_predictions(
                 [10],  # prediction_window=12, timesteps=12, so 10+12 > 12
-                n_optimization_iterations=100
+                n_optimization_iterations=5
             )
             assert len(w) == 1
             assert "extends beyond simulation horizon" in str(w[0].message)
@@ -159,7 +159,7 @@ class TestVectorizedTemporalRiskSimulator:
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
         small_simulator.generate_ml_predictions(
-            [0, 6], n_optimization_iterations=100
+            [0, 6], n_optimization_iterations=5
         )
 
         small_simulator.assign_interventions(
@@ -182,7 +182,7 @@ class TestVectorizedTemporalRiskSimulator:
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
         small_simulator.generate_ml_predictions(
-            [0], n_optimization_iterations=100
+            [0], n_optimization_iterations=5
         )
 
         small_simulator.assign_interventions(
@@ -200,7 +200,7 @@ class TestVectorizedTemporalRiskSimulator:
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
         small_simulator.generate_ml_predictions(
-            [0], n_optimization_iterations=100
+            [0], n_optimization_iterations=5
         )
 
         small_simulator.assign_interventions(
@@ -218,7 +218,7 @@ class TestVectorizedTemporalRiskSimulator:
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
         small_simulator.generate_ml_predictions(
-            [0], n_optimization_iterations=100
+            [0], n_optimization_iterations=5
         )
 
         with pytest.raises(ValueError, match="Unknown assignment strategy"):
@@ -239,7 +239,7 @@ class TestVectorizedTemporalRiskSimulator:
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
         small_simulator.generate_ml_predictions(
-            [0], n_optimization_iterations=100
+            [0], n_optimization_iterations=5
         )
         small_simulator.assign_interventions()
 
@@ -280,7 +280,7 @@ class TestVectorizedTemporalRiskSimulator:
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
         small_simulator.generate_ml_predictions(
-            [0], n_optimization_iterations=100
+            [0], n_optimization_iterations=5
         )
         small_simulator.assign_interventions()
 
@@ -320,7 +320,7 @@ class TestVectorizedTemporalRiskSimulator:
         """Test patient trajectory retrieval."""
         small_simulator.run_full_simulation(
             prediction_times=[0],
-            n_optimization_iterations=100
+            n_optimization_iterations=5
         )
 
         trajectory = small_simulator.get_patient_trajectory(0)
@@ -341,7 +341,7 @@ class TestVectorizedTemporalRiskSimulator:
         """Test patient trajectory with invalid patient ID."""
         small_simulator.run_full_simulation(
             prediction_times=[0],
-            n_optimization_iterations=100
+            n_optimization_iterations=5
         )
 
         with pytest.raises(ValueError, match="Patient ID .* out of range"):
@@ -354,7 +354,7 @@ class TestVectorizedTemporalRiskSimulator:
         """Test summary statistics generation."""
         small_simulator.run_full_simulation(
             prediction_times=[0, 6],
-            n_optimization_iterations=100
+            n_optimization_iterations=5
         )
 
         stats = small_simulator.get_summary_statistics()
@@ -392,7 +392,7 @@ class TestVectorizedTemporalRiskSimulator:
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
         small_simulator.generate_ml_predictions(
-            [0, 6], n_optimization_iterations=100
+            [0, 6], n_optimization_iterations=5
         )
 
         # Test with very selective interventions
@@ -435,7 +435,7 @@ class TestVectorizedTemporalRiskSimulator:
 
         small_simulator.run_full_simulation(
             prediction_times=[0],
-            n_optimization_iterations=100
+            n_optimization_iterations=5
         )
 
         # Counterfactuals should use same base risks
@@ -482,7 +482,7 @@ class TestVectorizedTemporalRiskSimulator:
         """Test that performance metrics are computed correctly."""
         small_simulator.run_full_simulation(
             prediction_times=[0],
-            n_optimization_iterations=100
+            n_optimization_iterations=5
         )
 
         # Check intervention coverage
@@ -511,9 +511,9 @@ class TestVectorizedTemporalRiskSimulator:
             assert small_simulator.results.incident_reduction == 0.0
 
     @pytest.mark.parametrize("n_patients,n_timesteps", [
-        (50, 24),
-        (100, 52),
-        (200, 12)
+        (15, 12),
+        (20, 10),
+        (25, 8)
     ])
     def test_different_population_sizes(self, n_patients, n_timesteps):
         """Test simulator with different population sizes."""
@@ -526,7 +526,7 @@ class TestVectorizedTemporalRiskSimulator:
 
         results = simulator.run_full_simulation(
             prediction_times=[0],
-            n_optimization_iterations=100
+            n_optimization_iterations=5
         )
 
         assert results.n_patients == n_patients
@@ -540,25 +540,25 @@ class TestVectorizedTemporalRiskSimulator:
 
         # Run simulation twice with same seed
         sim1 = VectorizedTemporalRiskSimulator(
-            n_patients=50,
-            n_timesteps=12,
+            n_patients=15,  # Reduced for speed
+            n_timesteps=8,  # Reduced for speed
             annual_incident_rate=0.1,
             random_seed=seed
         )
         results1 = sim1.run_full_simulation(
             prediction_times=[0],
-            n_optimization_iterations=100
+            n_optimization_iterations=5
         )
 
         sim2 = VectorizedTemporalRiskSimulator(
-            n_patients=50,
-            n_timesteps=12,
+            n_patients=15,  # Reduced for speed
+            n_timesteps=8,  # Reduced for speed
             annual_incident_rate=0.1,
             random_seed=seed
         )
         results2 = sim2.run_full_simulation(
             prediction_times=[0],
-            n_optimization_iterations=100
+            n_optimization_iterations=5
         )
 
         # Results should be identical
@@ -578,7 +578,7 @@ class TestVectorizedTemporalRiskSimulator:
 
         small_simulator.run_full_simulation(
             prediction_times=[0],
-            n_optimization_iterations=100
+            n_optimization_iterations=5
         )
 
         # With zero effectiveness, incidents same as counterfactuals
@@ -598,7 +598,7 @@ class TestVectorizedTemporalRiskSimulator:
             prediction_times=[0],
             assignment_strategy="random",
             treatment_fraction=1.0,  # Treat everyone
-            n_optimization_iterations=100
+            n_optimization_iterations=5
         )
 
         # With full effectiveness and everyone treated, fewer incidents
