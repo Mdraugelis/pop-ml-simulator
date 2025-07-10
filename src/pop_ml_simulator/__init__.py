@@ -33,6 +33,10 @@ from .risk_integration import (
     extract_risk_windows,
     validate_integration_bounds
 )
+from .vectorized_simulator import (
+    VectorizedTemporalRiskSimulator,
+    SimulationResults
+)
 
 __all__: List[str] = [
     "add",
@@ -65,5 +69,8 @@ __all__: List[str] = [
     "generate_temporal_ml_predictions",
     "validate_temporal_sensitivity",
     "benchmark_temporal_ml_performance",
+    # Vectorized simulator
+    "VectorizedTemporalRiskSimulator",
+    "SimulationResults",
 ]
 __version__ = "0.1.0"

@@ -1,0 +1,129 @@
+# Baseline Simulation Configuration for VectorizedTemporalRiskSimulator
+# This configuration defines a realistic healthcare AI intervention simulation
+
+# Experiment metadata
+experiment:
+  name: "baseline_healthcare_ai_intervention"
+  description: "Baseline simulation of healthcare AI intervention with causal inference"
+  version: "1.0.0"
+  author: "Healthcare AI Simulation Team"
+  created_date: "2025-01-09"
+  
+# Random seed for reproducibility
+random_seed: 42
+
+# Population parameters
+population:
+  n_patients: 10000
+  annual_incident_rate: 0.08  # 8% annual incident rate
+  risk_concentration: 0.5     # Beta distribution concentration parameter
+  
+# Temporal simulation settings
+temporal:
+  n_timesteps: 52             # 52 weeks (1 year)
+  timestep_duration: 0.01923  # 1/52 (weekly timesteps)
+  prediction_window: 12       # 12-week prediction window
+  
+# Temporal dynamics parameters
+temporal_dynamics:
+  rho: 0.9                    # AR(1) persistence parameter
+  sigma: 0.1                  # AR(1) noise standard deviation
+  temporal_bounds: [0.2, 2.5] # Min/max bounds for temporal modifiers
+  seasonal_amplitude: 0.2      # Seasonal variation amplitude
+  seasonal_period: 52          # Seasonal cycle period (weeks)
+  
+# ML model parameters
+ml_model:
+  target_sensitivity: 0.75     # Target recall/sensitivity
+  target_ppv: 0.35            # Target precision/PPV
+  n_optimization_iterations: 20  # Optimization iterations for noise parameters
+  calibration: "sigmoid"       # Calibration method
+  
+# Prediction schedule
+prediction_schedule:
+  prediction_times: [0, 12, 24, 36] # Quarterly predictions
+  
+# Intervention strategy
+intervention:
+  effectiveness: 0.25          # 25% relative risk reduction
+  assignment_strategy: "ml_threshold" # Assignment method
+  threshold: 0.5               # ML score threshold for intervention
+  treatment_fraction: null     # Only used for random/top_k strategies
+  
+# Simulation options
+simulation:
+  generate_counterfactuals: true
+  track_patient_trajectories: true
+  
+# Output configuration
+output:
+  save_results: true
+  output_dir: "outputs/baseline_simulation"
+  save_formats: ["csv", "parquet", "json"]
+  
+  # What to save
+  save_components:
+    patient_risks: true
+    temporal_matrix: true
+    incident_matrix: true
+    ml_predictions: true
+    interventions: true
+    counterfactuals: true
+    summary_stats: true
+    
+  # Visualization options
+  generate_plots: true
+  plot_types: ["risk_distribution", "temporal_trends", "intervention_effects"]
+  
+# Logging configuration
+logging:
+  level: "INFO"
+  log_file: "simulation.log"
+  log_format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+# Performance configuration
+performance:
+  parallel_processing: false
+  n_jobs: 1
+  memory_limit: "4GB"
+  
+# Validation settings
+validation:
+  run_validation_checks: true
+  validate_population_mean: true
+  validate_temporal_autocorrelation: true
+  validate_intervention_coverage: true
+  
+  # Validation tolerances
+  population_mean_tolerance: 0.05
+  temporal_autocorr_min: 0.8
+  intervention_coverage_range: [0.05, 0.5]
+
+# Advanced configuration for sensitivity analysis
+sensitivity_analysis:
+  enabled: false
+  parameters:
+    intervention_effectiveness: [0.1, 0.2, 0.3, 0.4, 0.5]
+    target_ppv: [0.2, 0.3, 0.4, 0.5]
+    target_sensitivity: [0.6, 0.7, 0.8, 0.9]
+    
+# Causal inference configuration (for future use)
+causal_inference:
+  enabled: false
+  methods: ["did", "rdd", "its"]
+  
+  # Difference-in-Differences settings
+  did:
+    pre_period_length: 24
+    post_period_length: 24
+    treatment_fraction: 0.5
+    
+  # Regression Discontinuity Design settings
+  rdd:
+    threshold: 0.5
+    bandwidth: 0.1
+    
+  # Interrupted Time Series settings  
+  its:
+    intervention_time: 26
+    min_observations: 12

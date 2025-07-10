@@ -19,6 +19,10 @@ matplotlib>=3.5.0  # For notebook plotting
 seaborn>=0.11.0  # Statistical plotting (used in notebooks)
 scikit-learn>=1.0.0  # For ML metrics and calibration
 
+# Interactive visualization (optional)
+plotly>=5.0.0  # Interactive plots for advanced analysis
+kaleido>=0.2.1  # Static image export for plotly
+
 # Configuration management
 hydra-core>=1.3.0
 omegaconf>=2.3.0

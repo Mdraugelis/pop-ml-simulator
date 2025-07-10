@@ -17,14 +17,14 @@ def _do_redact(value: Any) -> str:
 
 
 def log_call(func: F) -> F:
-    """Decorator that logs function entry, exit and runtime."""
+    """Decorator that logs function entry, exit and runtime at DEBUG level."""
 
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         logger = logging.getLogger(func.__module__)
         log_debug = logger.isEnabledFor(logging.DEBUG)
-        logger.info("Entering %s", func.__qualname__)
         if log_debug:
+            logger.debug("Entering %s", func.__qualname__)
             sanitized_args = [_do_redact(a) for a in args]
             sanitized_kwargs = {k: _do_redact(v) for k, v in kwargs.items()}
             logger.debug("args=%s kwargs=%s", sanitized_args, sanitized_kwargs)
@@ -33,7 +33,7 @@ def log_call(func: F) -> F:
         runtime_ms = (time.time() - start) * 1000.0
         if log_debug:
             logger.debug("return=%s", _do_redact(result))
-        logger.info("Exiting %s (%.2fms)", func.__qualname__, runtime_ms)
+            logger.debug("Exiting %s (%.2fms)", func.__qualname__, runtime_ms)
         return result
 
     return wrapper  # type: ignore[return-value]
