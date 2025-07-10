@@ -7,7 +7,7 @@ single simulation framework optimized for causal inference research.
 """
 
 import numpy as np
-from scipy import sparse
+from scipy import sparse  # type: ignore
 from typing import Optional, Dict, List, Tuple, Any
 import warnings
 from dataclasses import dataclass
@@ -681,7 +681,7 @@ class VectorizedTemporalRiskSimulator:
         stats : dict
             Dictionary containing key simulation statistics
         """
-        stats = {
+        stats: Dict[str, Any] = {
             'n_patients': self.n_patients,
             'n_timesteps': self.n_timesteps,
             'intervention_effectiveness': self.intervention_effectiveness,
