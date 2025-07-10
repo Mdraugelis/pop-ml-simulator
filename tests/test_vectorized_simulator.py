@@ -346,7 +346,7 @@ class TestVectorizedTemporalRiskSimulator:
         )
 
         with pytest.raises(ValueError, match="Patient ID .* out of range"):
-            small_simulator.get_patient_trajectory(10)  # Now out of range since only 5 patients
+            small_simulator.get_patient_trajectory(10)  # Out of range
 
         with pytest.raises(ValueError, match="Patient ID .* out of range"):
             small_simulator.get_patient_trajectory(-1)
