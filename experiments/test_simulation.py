@@ -38,6 +38,7 @@ def test_basic_functionality():
             n_timesteps=8,  # Reduced for speed
             annual_incident_rate=0.1,
             intervention_effectiveness=0.3,
+            prediction_window=4,  # Reduced to fit within 8 timesteps
             random_seed=42
         )
         
@@ -90,6 +91,7 @@ def test_full_pipeline():
             n_timesteps=8,  # Reduced for speed
             annual_incident_rate=0.08,
             intervention_effectiveness=0.25,
+            prediction_window=4,  # Reduced to fit within 8 timesteps
             random_seed=123
         )
         
@@ -133,6 +135,7 @@ def test_summary_statistics():
             n_patients=8,  # Reduced for speed
             n_timesteps=6,  # Reduced for speed
             annual_incident_rate=0.1,
+            prediction_window=3,  # Reduced to fit within 6 timesteps
             random_seed=456
         )
         
@@ -171,6 +174,7 @@ def test_patient_trajectory():
             n_patients=8,  # Reduced for speed
             n_timesteps=6,  # Reduced for speed
             annual_incident_rate=0.1,
+            prediction_window=3,  # Reduced to fit within 6 timesteps
             random_seed=789
         )
         
@@ -215,6 +219,7 @@ def test_different_assignment_strategies():
                 n_patients=8,  # Reduced for speed
                 n_timesteps=6,  # Reduced for speed
                 annual_incident_rate=0.1,
+                prediction_window=3,  # Reduced to fit within 6 timesteps
                 random_seed=42
             )
             
@@ -260,6 +265,7 @@ def test_reproducibility():
                 n_patients=8,  # Reduced for speed
                 n_timesteps=6,  # Reduced for speed
                 annual_incident_rate=0.1,
+                prediction_window=3,  # Reduced to fit within 6 timesteps
                 random_seed=seed
             )
             
@@ -295,6 +301,7 @@ def run_performance_benchmark():
                 n_patients=n_patients,
                 n_timesteps=n_timesteps,
                 annual_incident_rate=0.08,
+                prediction_window=min(4, n_timesteps-2),  # Ensure window fits
                 random_seed=42
             )
             
