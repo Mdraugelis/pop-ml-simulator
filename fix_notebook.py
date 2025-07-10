@@ -20,4 +20,9 @@ def fix_notebook(filepath):
     print(f"Fixed notebook: {filepath}")
 
 if __name__ == "__main__":
-    fix_notebook(sys.argv[1] if len(sys.argv) > 1 else "/Users/michaeldraugelis/Library/CloudStorage/Dropbox/proj/pop-ml-simulator/notebooks/06_temporal_ml_integration_demo.ipynb")
+    if len(sys.argv) > 1:
+        fix_notebook(sys.argv[1])
+    else:
+        print("Usage: python fix_notebook.py <notebook_path>")
+        print("Example: python fix_notebook.py notebooks/06_temporal_ml_integration_demo.ipynb")
+        sys.exit(1)

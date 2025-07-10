@@ -37,7 +37,7 @@ class SimulationResults:
     ml_predictions: Dict[int, np.ndarray]
     ml_binary_predictions: Dict[int, np.ndarray]
     intervention_matrix: sparse.csr_matrix
-    intervention_times: Dict[int, np.ndarray]
+    intervention_times: Dict[int, List[int]]
 
     # Counterfactual data
     counterfactual_incidents: Optional[np.ndarray] = None
@@ -149,7 +149,6 @@ class VectorizedTemporalRiskSimulator:
         self._ml_predictions_generated = False
         self._interventions_assigned = False
         self._incidents_simulated = False
-        
         # Cache for ML training data generation
         self._cached_incident_matrix: Optional[np.ndarray] = None
         self._cached_ml_params: Optional[Dict[str, float]] = None
@@ -209,12 +208,15 @@ class VectorizedTemporalRiskSimulator:
             raise ValueError("Population must be initialized first")
 
         # Run temporal simulation
-        self.temporal_simulator.simulate(self.n_timesteps - 1)
+        if self.temporal_simulator is not None:
+            self.temporal_simulator.simulate(self.n_timesteps - 1)
 
-        # Extract risk matrix
-        self.results.temporal_risk_matrix = (
-            self.temporal_simulator.get_risk_matrix()
-        )
+            # Extract risk matrix
+            self.results.temporal_risk_matrix = (
+                self.temporal_simulator.get_risk_matrix()
+            )
+        else:
+            raise ValueError("Temporal simulator not initialized")
 
         self._temporal_simulated = True
 
@@ -256,11 +258,15 @@ class VectorizedTemporalRiskSimulator:
         # Optimize ML parameters once using first valid prediction time
         if self._cached_ml_params is None and prediction_times:
             import logging
-            logging.debug(f"Optimizing ML parameters (iterations={n_optimization_iterations})...")
-            
+            logging.debug(
+                f"Optimizing ML parameters "
+                f"(iterations={n_optimization_iterations})..."
+            )
             for pred_time in prediction_times:
-                if pred_time + self.prediction_window <= self.n_timesteps:
-                    # Use first valid prediction time for parameter optimization
+                if (pred_time + self.prediction_window <=
+                        self.n_timesteps):
+                    # Use first valid prediction time for parameter
+                    # optimization
                     risk_windows = extract_risk_windows(
                         self.results.temporal_risk_matrix,
                         start_time=pred_time,
@@ -271,20 +277,26 @@ class VectorizedTemporalRiskSimulator:
                         timestep_duration=self.timestep_duration
                     )
                     true_labels = self._generate_true_labels(pred_time)
-                    
+
                     # Optimize parameters once
-                    self._cached_ml_params = self.ml_simulator.optimize_noise_parameters(
-                        true_labels,
-                        integrated_risks,
-                        n_iterations=n_optimization_iterations
+                    self._cached_ml_params = (
+                        self.ml_simulator.optimize_noise_parameters(
+                            true_labels,
+                            integrated_risks,
+                            n_iterations=n_optimization_iterations
+                        )
                     )
                     logging.debug("ML parameter optimization completed")
                     break
 
         # Set cached parameters if available
         if self._cached_ml_params:
-            self.ml_simulator.noise_correlation = self._cached_ml_params['correlation']
-            self.ml_simulator.noise_scale = self._cached_ml_params['scale']
+            self.ml_simulator.noise_correlation = (
+                self._cached_ml_params['correlation']
+            )
+            self.ml_simulator.noise_scale = (
+                self._cached_ml_params['scale']
+            )
 
         # Generate predictions at each time point
         for pred_time in prediction_times:
@@ -329,23 +341,23 @@ class VectorizedTemporalRiskSimulator:
         """Generate and cache incident matrix for ML training if needed."""
         if self._cached_incident_matrix is not None:
             return
-            
+
         # Generate incident matrix once using vectorized operations
         # Convert all risks to hazards at once
         annual_hazards = annual_risk_to_hazard(
             self.results.temporal_risk_matrix
         )
-        
+
         # Convert to timestep probabilities (vectorized)
         timestep_probs = hazard_to_timestep_probability(
             annual_hazards, self.timestep_duration
         )
-        
+
         # Generate all random draws at once
         random_draws = np.random.uniform(
             0, 1, (self.n_patients, self.n_timesteps)
         )
-        
+
         # Generate incident matrix (vectorized)
         self._cached_incident_matrix = random_draws < timestep_probs
 
@@ -356,6 +368,8 @@ class VectorizedTemporalRiskSimulator:
             # Use cached incident matrix for ML training
             self._ensure_cached_incident_matrix()
             incident_matrix = self._cached_incident_matrix
+            if incident_matrix is None:
+                raise ValueError("Failed to generate cached incident matrix")
         else:
             # Use existing incident matrix
             incident_matrix = self.results.incident_matrix
@@ -409,12 +423,18 @@ class VectorizedTemporalRiskSimulator:
 
         # Initialize intervention tracking
         intervention_data = []
-        intervention_times: Dict[int, List[int]] = {
-            time: [] for time in self.results.ml_prediction_times
-        }
+        # Initialize intervention times
+        if self.results.ml_prediction_times is not None:
+            intervention_times: Dict[int, List[int]] = {
+                time: [] for time in self.results.ml_prediction_times
+            }
+            prediction_times = self.results.ml_prediction_times
+        else:
+            intervention_times = {}
+            prediction_times = []
 
         # Assign interventions for each prediction time
-        for pred_time in self.results.ml_prediction_times:
+        for pred_time in prediction_times:
             if pred_time not in self.results.ml_predictions:
                 continue
 
@@ -513,13 +533,17 @@ class VectorizedTemporalRiskSimulator:
 
             # Generate counterfactual incidents (no intervention)
             if generate_counterfactuals:
-                counterfactual_incidents = self.incident_generator.generate_incidents(
-                    current_risks,
-                    intervention_mask=None,
-                    intervention_effectiveness=0.0
+                counterfactual_incidents = (
+                    self.incident_generator.generate_incidents(
+                        current_risks,
+                        intervention_mask=None,
+                        intervention_effectiveness=0.0
+                    )
                 )
                 if self.results.counterfactual_incidents is not None:
-                    self.results.counterfactual_incidents[:, t] = counterfactual_incidents
+                    self.results.counterfactual_incidents[
+                        :, t
+                    ] = counterfactual_incidents
 
         self._incidents_simulated = True
         self._compute_performance_metrics()
