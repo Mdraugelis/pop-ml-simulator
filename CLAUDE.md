@@ -15,7 +15,7 @@ Always reference the design document to guide architecture, function and require
 ## Key Commands
 ```bash
 # Run fast core tests (excludes expensive ML optimization and notebooks)
-python tests/run_tests.py -k "not test_public_functions_are_decorated and not test_notebook"
+python tests/run_tests.py -k "not test_public_functions_are_decorated and not test_notebook and not test_ml_simulation.py and not test_temporal_ml_simulation.py"
 
 # Run all tests including expensive ones (CI/local comprehensive testing)
 python tests/run_tests.py -k "not test_public_functions_are_decorated" 
