@@ -9,13 +9,24 @@ import pytest
 import numpy as np
 import warnings
 from scipy import sparse
-# from unittest.mock import patch, MagicMock  # noqa: F401
+from unittest.mock import patch
 
 from pop_ml_simulator import VectorizedTemporalRiskSimulator, SimulationResults
 
 
 class TestVectorizedTemporalRiskSimulator:
     """Test suite for VectorizedTemporalRiskSimulator class."""
+
+    @pytest.fixture(autouse=True)
+    def mock_ml_optimization(self):
+        """Mock expensive ML optimization to speed up tests."""
+        with patch(
+            'pop_ml_simulator.ml_simulation.'
+            'MLPredictionSimulator.optimize_noise_parameters'
+        ) as mock:
+            # Return immediately with default params instead of grid search
+            mock.return_value = {'correlation': 0.7, 'scale': 0.3}
+            yield mock
 
     @pytest.fixture
     def basic_simulator(self):
