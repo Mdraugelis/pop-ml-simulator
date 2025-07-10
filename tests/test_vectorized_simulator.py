@@ -158,7 +158,9 @@ class TestVectorizedTemporalRiskSimulator:
         """Test intervention assignment with ML threshold strategy."""
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
-        small_simulator.generate_ml_predictions([0, 6], n_optimization_iterations=100)
+        small_simulator.generate_ml_predictions(
+            [0, 6], n_optimization_iterations=100
+        )
 
         small_simulator.assign_interventions(
             assignment_strategy="ml_threshold",
@@ -166,7 +168,9 @@ class TestVectorizedTemporalRiskSimulator:
         )
 
         assert small_simulator._interventions_assigned
-        assert isinstance(small_simulator.results.intervention_matrix, sparse.csr_matrix)
+        assert isinstance(
+            small_simulator.results.intervention_matrix, sparse.csr_matrix
+        )
         assert small_simulator.results.intervention_matrix.shape == (10, 12)
 
         # Check that interventions were assigned
@@ -177,7 +181,9 @@ class TestVectorizedTemporalRiskSimulator:
         """Test intervention assignment with random strategy."""
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
-        small_simulator.generate_ml_predictions([0], n_optimization_iterations=100)
+        small_simulator.generate_ml_predictions(
+            [0], n_optimization_iterations=100
+        )
 
         small_simulator.assign_interventions(
             assignment_strategy="random",
@@ -193,7 +199,9 @@ class TestVectorizedTemporalRiskSimulator:
         """Test intervention assignment with top-k strategy."""
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
-        small_simulator.generate_ml_predictions([0], n_optimization_iterations=100)
+        small_simulator.generate_ml_predictions(
+            [0], n_optimization_iterations=100
+        )
 
         small_simulator.assign_interventions(
             assignment_strategy="top_k",
@@ -209,7 +217,9 @@ class TestVectorizedTemporalRiskSimulator:
         """Test that unknown assignment strategy raises error."""
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
-        small_simulator.generate_ml_predictions([0], n_optimization_iterations=100)
+        small_simulator.generate_ml_predictions(
+            [0], n_optimization_iterations=100
+        )
 
         with pytest.raises(ValueError, match="Unknown assignment strategy"):
             small_simulator.assign_interventions(assignment_strategy="unknown")
@@ -219,21 +229,28 @@ class TestVectorizedTemporalRiskSimulator:
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
 
-        with pytest.raises(ValueError, match="ML predictions must be generated first"):
+        with pytest.raises(
+            ValueError, match="ML predictions must be generated first"
+        ):
             small_simulator.assign_interventions()
 
     def test_simulate_incidents(self, small_simulator):
         """Test incident simulation."""
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
-        small_simulator.generate_ml_predictions([0], n_optimization_iterations=100)
+        small_simulator.generate_ml_predictions(
+            [0], n_optimization_iterations=100
+        )
         small_simulator.assign_interventions()
 
         small_simulator.simulate_incidents(generate_counterfactuals=True)
 
         assert small_simulator._incidents_simulated
         assert small_simulator.results.incident_matrix.shape == (10, 12)
-        assert small_simulator.results.counterfactual_incidents.shape == (10, 12)
+        assert (
+            small_simulator.results.counterfactual_incidents.shape ==
+            (10, 12)
+        )
 
         # Check incident properties
         incidents = small_simulator.results.incident_matrix
@@ -253,14 +270,18 @@ class TestVectorizedTemporalRiskSimulator:
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
 
-        with pytest.raises(ValueError, match="Interventions must be assigned first"):
+        with pytest.raises(
+            ValueError, match="Interventions must be assigned first"
+        ):
             small_simulator.simulate_incidents()
 
     def test_simulate_incidents_no_counterfactuals(self, small_simulator):
         """Test incident simulation without counterfactuals."""
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
-        small_simulator.generate_ml_predictions([0], n_optimization_iterations=100)
+        small_simulator.generate_ml_predictions(
+            [0], n_optimization_iterations=100
+        )
         small_simulator.assign_interventions()
 
         small_simulator.simulate_incidents(generate_counterfactuals=False)
@@ -370,7 +391,9 @@ class TestVectorizedTemporalRiskSimulator:
         """Test that intervention tracking uses sparse matrices efficiently."""
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
-        small_simulator.generate_ml_predictions([0, 6], n_optimization_iterations=100)
+        small_simulator.generate_ml_predictions(
+            [0, 6], n_optimization_iterations=100
+        )
 
         # Test with very selective interventions
         small_simulator.assign_interventions(
@@ -382,8 +405,10 @@ class TestVectorizedTemporalRiskSimulator:
         assert isinstance(intervention_matrix, sparse.csr_matrix)
         assert intervention_matrix.shape == (10, 12)
 
-        # Sparse matrix should be more efficient than dense for sparse interventions
-        total_elements = intervention_matrix.shape[0] * intervention_matrix.shape[1]
+        # Sparse matrix more efficient than dense for sparse interventions
+        total_elements = (
+            intervention_matrix.shape[0] * intervention_matrix.shape[1]
+        )
         non_zero_elements = intervention_matrix.nnz
         sparsity = 1 - (non_zero_elements / total_elements)
         assert sparsity > 0.5  # Should be at least 50% sparse
@@ -415,14 +440,16 @@ class TestVectorizedTemporalRiskSimulator:
 
         # Counterfactuals should use same base risks
         actual_incidents = small_simulator.results.incident_matrix
-        counterfactual_incidents = small_simulator.results.counterfactual_incidents
+        counterfactual_incidents = (
+            small_simulator.results.counterfactual_incidents
+        )
 
         # Both should be boolean arrays of same shape
         assert actual_incidents.shape == counterfactual_incidents.shape
         assert actual_incidents.dtype == bool
         assert counterfactual_incidents.dtype == bool
 
-        # Counterfactuals should generally have more incidents (no intervention)
+        # Counterfactuals generally have more incidents (no intervention)
         actual_total = np.sum(actual_incidents)
         counterfactual_total = np.sum(counterfactual_incidents)
         assert counterfactual_total >= actual_total
@@ -461,17 +488,25 @@ class TestVectorizedTemporalRiskSimulator:
         # Check intervention coverage
         total_interventions = small_simulator.results.intervention_matrix.nnz
         expected_coverage = total_interventions / (10 * 12)
-        assert small_simulator.results.intervention_coverage == expected_coverage
+        assert (
+            small_simulator.results.intervention_coverage ==
+            expected_coverage
+        )
 
         # Check incident reduction calculation
         actual_incidents = np.sum(small_simulator.results.incident_matrix)
-        counterfactual_incidents = np.sum(small_simulator.results.counterfactual_incidents)
+        counterfactual_incidents = np.sum(
+            small_simulator.results.counterfactual_incidents
+        )
 
         if counterfactual_incidents > 0:
             expected_reduction = (
-                (counterfactual_incidents - actual_incidents) / counterfactual_incidents
+                (counterfactual_incidents - actual_incidents) /
+                counterfactual_incidents
             )
-            assert np.isclose(small_simulator.results.incident_reduction, expected_reduction)
+            assert np.isclose(
+                small_simulator.results.incident_reduction, expected_reduction
+            )
         else:
             assert small_simulator.results.incident_reduction == 0.0
 
@@ -546,9 +581,11 @@ class TestVectorizedTemporalRiskSimulator:
             n_optimization_iterations=100
         )
 
-        # With zero effectiveness, incidents should be same as counterfactuals
+        # With zero effectiveness, incidents same as counterfactuals
         actual_incidents = np.sum(small_simulator.results.incident_matrix)
-        counterfactual_incidents = np.sum(small_simulator.results.counterfactual_incidents)
+        counterfactual_incidents = np.sum(
+            small_simulator.results.counterfactual_incidents
+        )
 
         # They should be very close (might differ due to randomness)
         assert np.isclose(actual_incidents, counterfactual_incidents, rtol=0.1)
@@ -564,8 +601,10 @@ class TestVectorizedTemporalRiskSimulator:
             n_optimization_iterations=100
         )
 
-        # With full effectiveness and everyone treated, should have fewer incidents
+        # With full effectiveness and everyone treated, fewer incidents
         actual_incidents = np.sum(small_simulator.results.incident_matrix)
-        counterfactual_incidents = np.sum(small_simulator.results.counterfactual_incidents)
+        counterfactual_incidents = np.sum(
+            small_simulator.results.counterfactual_incidents
+        )
 
         assert actual_incidents <= counterfactual_incidents

@@ -460,7 +460,9 @@ class VectorizedTemporalRiskSimulator:
                 treated_patients = np.zeros(self.n_patients, dtype=bool)
                 treated_patients[top_indices] = True
             else:
-                raise ValueError(f"Unknown assignment strategy: {assignment_strategy}")
+                raise ValueError(
+                    f"Unknown assignment strategy: {assignment_strategy}"
+                )
 
             # Store intervention assignments
             treated_indices = np.where(treated_patients)[0]
@@ -486,7 +488,9 @@ class VectorizedTemporalRiskSimulator:
         self._interventions_assigned = True
 
     @log_call
-    def simulate_incidents(self, generate_counterfactuals: bool = True) -> None:
+    def simulate_incidents(
+        self, generate_counterfactuals: bool = True
+    ) -> None:
         """
         Simulate incidents with intervention effects.
 
@@ -517,7 +521,9 @@ class VectorizedTemporalRiskSimulator:
             current_risks = self.results.temporal_risk_matrix[:, t]
 
             # Check for active interventions
-            active_interventions = self.results.intervention_matrix[:, t].toarray().flatten()
+            active_interventions = (
+                self.results.intervention_matrix[:, t].toarray().flatten()
+            )
             intervention_mask = active_interventions > 0
 
             # Generate incidents with intervention effects
@@ -559,7 +565,9 @@ class VectorizedTemporalRiskSimulator:
         # Incident reduction (if counterfactuals available)
         if self.results.counterfactual_incidents is not None:
             actual_incidents = np.sum(self.results.incident_matrix)
-            counterfactual_incidents = np.sum(self.results.counterfactual_incidents)
+            counterfactual_incidents = np.sum(
+                self.results.counterfactual_incidents
+            )
 
             if counterfactual_incidents > 0:
                 self.results.incident_reduction = (
@@ -623,7 +631,9 @@ class VectorizedTemporalRiskSimulator:
             threshold=threshold,
             treatment_fraction=treatment_fraction
         )
-        self.simulate_incidents(generate_counterfactuals=generate_counterfactuals)
+        self.simulate_incidents(
+            generate_counterfactuals=generate_counterfactuals
+        )
 
         return self.results
 
@@ -649,7 +659,9 @@ class VectorizedTemporalRiskSimulator:
             'temporal_risks': self.results.temporal_risk_matrix[patient_id, :],
             'incidents': self.results.incident_matrix[patient_id, :],
             'interventions': (
-                self.results.intervention_matrix[patient_id, :].toarray().flatten()
+                self.results.intervention_matrix[
+                    patient_id, :
+                ].toarray().flatten()
             )
         }
 
