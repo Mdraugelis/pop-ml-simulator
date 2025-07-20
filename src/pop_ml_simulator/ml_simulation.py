@@ -1619,8 +1619,8 @@ def analyze_patient_journey_enhanced(
     pred_percentile = stats.percentileofscore(predictions, patient_pred)
 
     # Format base risk value
-    base_risk_str = f"{base_risks[patient_id]:.3f}" if base_risks is not None else "N/A"
-    
+    base_risk_str = (f"{base_risks[patient_id]:.3f}"
+                     if base_risks is not None else "N/A")
     summary_text = f"""Patient {patient_id} Summary:
 
 Classification: {classification}
@@ -1643,10 +1643,12 @@ ML Prediction:
 - Prediction Score: {patient_pred:.3f}
 - Prediction Percentile: {pred_percentile:.1f}%
 - True Label: {patient_label}
-- Event Time: {f"Week {patient_event_time}" if patient_event_time >= 0 else "No Event"}
+- Event Time: {f"Week {patient_event_time}"
+               if patient_event_time >= 0 else "No Event"}
 
 Clinical Impact:
-- Intervention: {"Yes" if intervention_mask is not None and intervention_mask[patient_id] else "No"}
+- Intervention: {"Yes" if intervention_mask is not None and
+                 intervention_mask[patient_id] else "No"}
 - Outcome: {classification}
 """
 
