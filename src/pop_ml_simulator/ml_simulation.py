@@ -1596,9 +1596,11 @@ def analyze_patient_journey_enhanced(
     # Calculate risk changes
     risk_changes = np.diff(patient_risks)
     ax7.plot(weeks[1:], risk_changes, 'b-', linewidth=2, alpha=0.7)
-    ax7.fill_between(weeks[1:], 0, risk_changes, where=(risk_changes > 0),
+    ax7.fill_between(weeks[1:], 0, risk_changes,
+                     where=(risk_changes > 0).tolist(),
                      color='red', alpha=0.3, label='Risk Increase')
-    ax7.fill_between(weeks[1:], 0, risk_changes, where=(risk_changes < 0),
+    ax7.fill_between(weeks[1:], 0, risk_changes,
+                     where=(risk_changes < 0).tolist(),
                      color='green', alpha=0.3, label='Risk Decrease')
 
     ax7.axhline(0, color='black', linestyle='-', alpha=0.3)
@@ -1866,10 +1868,11 @@ def plot_ai_quadrant(
                alpha=0.1, color='red')     # Missed Opportunities
 
     # Add quadrant text labels
-    label_props = dict(fontsize=12, fontweight='bold', ha='center',
-                       va='center',
-                       bbox=dict(boxstyle='round,pad=0.3',
-                                 facecolor='white', alpha=0.8))
+    label_props: Dict[str, Any] = dict(
+        fontsize=12, fontweight='bold', ha='center',
+        va='center',
+        bbox=dict(boxstyle='round,pad=0.3',
+                  facecolor='white', alpha=0.8))
 
     # Only add labels if we have reasonable space
     if (ax.get_xlim()[1] - ax.get_xlim()[0] > 0.05 and
