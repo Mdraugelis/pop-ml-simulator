@@ -26,7 +26,10 @@ from .ml_simulation import (
     analyze_risk_stratified_performance,
     generate_temporal_ml_predictions,
     validate_temporal_sensitivity,
-    benchmark_temporal_ml_performance
+    benchmark_temporal_ml_performance,
+    analyze_patient_journey_enhanced,
+    analyze_patients_by_outcome,
+    plot_ai_quadrant
 )
 from .risk_integration import (
     integrate_window_risk,
@@ -69,6 +72,10 @@ __all__: List[str] = [
     "generate_temporal_ml_predictions",
     "validate_temporal_sensitivity",
     "benchmark_temporal_ml_performance",
+    # AI Quadrant visualization functions
+    "analyze_patient_journey_enhanced",
+    "analyze_patients_by_outcome",
+    "plot_ai_quadrant",
     # Vectorized simulator
     "VectorizedTemporalRiskSimulator",
     "SimulationResults",

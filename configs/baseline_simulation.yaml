@@ -14,8 +14,8 @@ random_seed: 42
 
 # Population parameters
 population:
-  n_patients: 10000
-  annual_incident_rate: 0.08  # 8% annual incident rate
+  n_patients: 50000
+  annual_incident_rate: 0.03  # 8% annual incident rate
   risk_concentration: 0.5     # Beta distribution concentration parameter
   
 # Temporal simulation settings
@@ -34,8 +34,8 @@ temporal_dynamics:
   
 # ML model parameters
 ml_model:
-  target_sensitivity: 0.75     # Target recall/sensitivity
-  target_ppv: 0.35            # Target precision/PPV
+  target_sensitivity: 1.00     # Target recall/sensitivity
+  target_ppv: 1.00            # Target precision/PPV
   n_optimization_iterations: 20  # Optimization iterations for noise parameters
   calibration: "sigmoid"       # Calibration method
   
@@ -45,10 +45,10 @@ prediction_schedule:
   
 # Intervention strategy
 intervention:
-  effectiveness: 0.25          # 25% relative risk reduction
+  effectiveness: 0.50          # 25% relative risk reduction
   assignment_strategy: "ml_threshold" # Assignment method
   threshold: 0.5               # ML score threshold for intervention
-  treatment_fraction: null     # Only used for random/top_k strategies
+  treatment_fraction: 0.005     # Only used for random/top_k strategies
   
 # Simulation options
 simulation:
@@ -101,7 +101,7 @@ validation:
 
 # Advanced configuration for sensitivity analysis
 sensitivity_analysis:
-  enabled: false
+  enabled: false 
   parameters:
     intervention_effectiveness: [0.1, 0.2, 0.3, 0.4, 0.5]
     target_ppv: [0.2, 0.3, 0.4, 0.5]
