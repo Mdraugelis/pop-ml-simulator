@@ -10,7 +10,10 @@ import numpy as np
 import pandas as pd  # type: ignore
 from scipy import stats  # type: ignore
 from sklearn.metrics import roc_auc_score, confusion_matrix  # type: ignore
-from typing import Optional, Dict, List, Tuple, Union
+from typing import Optional, Dict, List, Tuple, Union, Any
+import matplotlib.pyplot as plt  # type: ignore
+from matplotlib.gridspec import GridSpec  # type: ignore
+import seaborn as sns  # type: ignore
 from utils.logging import log_call
 from .risk_integration import integrate_window_risk, extract_risk_windows
 from .hazard_modeling import (
@@ -30,7 +33,7 @@ def calculate_theoretical_performance_bounds(
 
     Parameters
     ----------
-    prevalence : float
+    prevalence : floa
         Population prevalence of the outcome
     sensitivity_range : np.ndarray, optional
         Range of sensitivity values to evaluate
@@ -39,7 +42,7 @@ def calculate_theoretical_performance_bounds(
     -------
     sensitivity_range : np.ndarray
         Sensitivity values evaluated
-    results : dict
+    results : dic
         PPV values for different specificity levels
 
     Examples
@@ -83,13 +86,13 @@ def hosmer_lemeshow_test(
     y_pred : np.ndarray
         Predicted probabilities
     n_bins : int, default=10
-        Number of bins for the test
+        Number of bins for the tes
 
     Returns
     -------
-    hl_statistic : float
+    hl_statistic : floa
         Hosmer-Lemeshow chi-square statistic
-    p_value : float
+    p_value : floa
         P-value for the test (> 0.05 indicates good calibration)
 
     Examples
@@ -131,7 +134,7 @@ class MLPredictionSimulator:
     """
     Simulates ML predictions with controlled performance characteristics.
 
-    Uses calibrated noise to create predictions that achieve target
+    Uses calibrated noise to create predictions that achieve targe
     sensitivity and PPV while maintaining realistic patterns.
 
     Parameters
@@ -147,11 +150,11 @@ class MLPredictionSimulator:
 
     Attributes
     ----------
-    noise_correlation : float
+    noise_correlation : floa
         Optimized correlation between predictions and true risk
-    noise_scale : float
+    noise_scale : floa
         Optimized noise scale parameter
-    threshold : float
+    threshold : floa
         Optimal decision threshold
 
     Examples
@@ -322,7 +325,7 @@ class MLPredictionSimulator:
 
         Returns
         -------
-        best_params : dict
+        best_params : dic
             Optimized parameters with keys 'correlation' and 'scale'
         """
         correlations = np.linspace(0.5, 0.95, 10)
@@ -384,9 +387,9 @@ class MLPredictionSimulator:
         ----------
         temporal_risk_matrix : np.ndarray
             Complete temporal risk matrix, shape (n_patients, n_timesteps)
-        prediction_start_time : int
+        prediction_start_time : in
             Starting timestep for the prediction window (0-indexed)
-        prediction_window_length : int
+        prediction_window_length : in
             Length of the prediction window in timesteps
         timestep_duration : float, default=1/52
             Duration of each timestep as fraction of year
@@ -394,10 +397,10 @@ class MLPredictionSimulator:
         Returns
         -------
         predictions : np.ndarray
-            Predicted probabilities for each patient
+            Predicted probabilities for each patien
         binary_predictions : np.ndarray
             Binary predictions using optimal threshold
-        integration_info : dict
+        integration_info : dic
             Information about the integration process and correlations
 
         Examples
@@ -436,7 +439,7 @@ class MLPredictionSimulator:
         true_labels = np.zeros(n_patients, dtype=int)
 
         for i in range(n_patients):
-            if event_times[i] >= 0:  # Patient has an event
+            if event_times[i] >= 0:  # Patient has an even
                 # Check if event occurs within the prediction window
                 if prediction_start_time <= event_times[i] < window_end:
                     true_labels[i] = 1
@@ -523,7 +526,7 @@ def evaluate_threshold_based(
 
     Returns
     -------
-    metrics : dict
+    metrics : dic
         Comprehensive performance metrics
 
     Examples
@@ -573,11 +576,11 @@ def evaluate_topk(
     predictions : np.ndarray
         Predicted probabilities
     k_percent : float, default=10.0
-        Percentage of highest-risk patients to select
+        Percentage of highest-risk patients to selec
 
     Returns
     -------
-    metrics : dict
+    metrics : dic
         Performance metrics for TopK selection
 
     Examples
@@ -636,7 +639,7 @@ def optimize_alert_threshold(
 
     Returns
     -------
-    results : dict
+    results : dic
         Optimization results including threshold and metrics
 
     Examples
@@ -715,12 +718,12 @@ def analyze_risk_stratified_performance(
         mask = risk_bins == bin_label
 
         if np.sum(mask) > 0:
-            # Get subset
+            # Get subse
             subset_true = true_labels[mask]
             subset_preds = predictions[mask]
             subset_risks = risk_scores[mask]
 
-            # Calculate optimal threshold for this subset
+            # Calculate optimal threshold for this subse
             if np.sum(subset_true) > 0:  # Has positive cases
                 best_threshold = 0.5
                 best_f1 = 0.0
@@ -730,7 +733,7 @@ def analyze_risk_stratified_performance(
                     if np.sum(binary) > 0:  # Has predictions
                         cm = confusion_matrix(subset_true, binary)
                         if cm.shape == (1, 1):
-                            # Handle case where only one class is present
+                            # Handle case where only one class is presen
                             if np.all(subset_true == 0):
                                 tn, fp, fn, tp = cm[0, 0], 0, 0, 0
                             else:
@@ -780,7 +783,7 @@ def generate_temporal_events(
     Generate temporal events using proper hazard-based simulation.
 
     This function generates events across the entire temporal period using
-    the hazard modeling approach, ensuring epidemiologically valid event
+    the hazard modeling approach, ensuring epidemiologically valid even
     generation that respects the calibrated incidence rates.
 
     Parameters
@@ -831,7 +834,7 @@ def generate_temporal_events(
             current_hazards, timestep_duration
         )
 
-        # Only generate events for patients who haven't had one yet
+        # Only generate events for patients who haven't had one ye
         eligible_mask = ~had_event
 
         # Generate events using binomial sampling
@@ -881,9 +884,9 @@ def generate_temporal_ml_predictions(
     ----------
     temporal_risk_matrix : np.ndarray
         Complete temporal risk matrix, shape (n_patients, n_timesteps)
-    prediction_start_time : int
+    prediction_start_time : in
         Starting timestep for the prediction window (0-indexed)
-    prediction_window_length : int
+    prediction_window_length : in
         Length of the prediction window in timesteps
     target_sensitivity : float, default=0.8
         Target sensitivity to achieve
@@ -897,10 +900,10 @@ def generate_temporal_ml_predictions(
     Returns
     -------
     predictions : np.ndarray
-        Predicted probabilities for each patient
+        Predicted probabilities for each patien
     binary_predictions : np.ndarray
         Binary predictions using optimal threshold
-    performance_metrics : dict
+    performance_metrics : dic
         Achieved performance metrics and correlation statistics
 
     Examples
@@ -969,7 +972,7 @@ def generate_temporal_ml_predictions(
     true_labels = np.zeros(n_patients, dtype=int)
 
     for i in range(n_patients):
-        if event_times[i] >= 0:  # Patient has an event
+        if event_times[i] >= 0:  # Patient has an even
             # Check if event occurs within the prediction window
             if prediction_start_time <= event_times[i] < window_end:
                 true_labels[i] = 1
@@ -1023,7 +1026,7 @@ def generate_temporal_ml_predictions(
         np.corrcoef(predictions, integrated_risks)[0, 1]
     )
 
-    # Combine all metrics into a single dict
+    # Combine all metrics into a single dic
     # Copy numeric metrics
     all_metrics: Dict[str, object] = dict(performance_metrics)
     all_metrics.update({
@@ -1047,8 +1050,8 @@ def validate_temporal_sensitivity(
     """
     Validate that predictions are sensitive to temporal risk changes.
 
-    This function ensures that ML predictions appropriately reflect
-    temporal variations in patient risk, which is a key requirement
+    This function ensures that ML predictions appropriately reflec
+    temporal variations in patient risk, which is a key requiremen
     for realistic temporal ML simulation.
 
     Parameters
@@ -1056,13 +1059,13 @@ def validate_temporal_sensitivity(
     temporal_risks : np.ndarray
         Temporal risk values, shape (n_patients, n_timesteps)
     predictions : np.ndarray
-        ML predictions for each patient
+        ML predictions for each patien
     min_correlation : float, default=0.5
         Minimum required correlation for validation to pass
 
     Returns
     -------
-    validation_results : dict
+    validation_results : dic
         Correlation statistics and validation status
 
     Examples
@@ -1145,10 +1148,10 @@ def benchmark_temporal_ml_performance(
         Complete temporal risk matrix, shape (n_patients, n_timesteps)
     base_risks : np.ndarray
         Static base risks for comparison baseline
-    window_configs : list of dict
+    window_configs : list of dic
         List of window configurations to test. Each dict should contain:
-        - 'start_time': int
-        - 'window_length': int
+        - 'start_time': in
+        - 'window_length': in
     random_seed : int, optional
         Random seed for reproducibility
 
@@ -1269,3 +1272,1080 @@ def benchmark_temporal_ml_performance(
             results.append(result)
 
     return pd.DataFrame(results)
+
+
+@log_call
+def analyze_patient_journey_enhanced(
+    patient_id: int,
+    temporal_risk_matrix: np.ndarray,
+    prediction_start: int,
+    window_length: int,
+    predictions: np.ndarray,
+    true_labels: np.ndarray,
+    event_times: np.ndarray,
+    integrated_risks: Optional[np.ndarray] = None,
+    base_risks: Optional[np.ndarray] = None,
+    intervention_mask: Optional[np.ndarray] = None,
+    timestep_duration: float = 1/52,
+    figsize: Tuple[int, int] = (20, 16),
+    show_plot: bool = True
+) -> Dict[str, Any]:
+    """
+    Generate comprehensive 8-panel visualization for a single patient's
+    journey.
+
+    This function creates a detailed visualization showing how a patient's risk
+    evolves over time, how the ML model makes predictions, and where the
+    patient falls in the confusion matrix.
+
+    Parameters
+    ----------
+    patient_id : in
+        Index of the patient to analyze
+    temporal_risk_matrix : np.ndarray
+        Complete temporal risk matrix, shape (n_patients, n_timesteps)
+    prediction_start : in
+        Starting timestep for the prediction window
+    window_length : in
+        Length of the prediction window in timesteps
+    predictions : np.ndarray
+        ML predictions for all patients
+    true_labels : np.ndarray
+        True binary outcomes for all patients
+    event_times : np.ndarray
+        Time of first event for each patient (-1 if no event)
+    integrated_risks : np.ndarray, optional
+        Integrated risks over prediction window
+    base_risks : np.ndarray, optional
+        Static base risks for all patients
+    intervention_mask : np.ndarray, optional
+        Boolean mask indicating which patients received intervention
+    timestep_duration : float, default=1/52
+        Duration of each timestep as fraction of year
+    figsize : tuple, default=(20, 16)
+        Figure size for the visualization
+    show_plot : bool, default=True
+        Whether to display the plo
+
+    Returns
+    -------
+    analysis_results : dic
+        Dictionary containing:
+        - patient_id: in
+        - classification: str (TP/FP/TN/FN)
+        - base_risk: floa
+        - integrated_risk: floa
+        - ml_prediction: floa
+        - true_label: in
+        - event_time: in
+        - risk_trajectory: np.ndarray
+        - window_risks: np.ndarray
+        - cumulative_hazard: floa
+        - figure: matplotlib.figure.Figure (if show_plot=False)
+
+    Examples
+    --------
+    >>> analysis = analyze_patient_journey_enhanced(
+    ...     patient_id=42,
+    ...     temporal_risk_matrix=temporal_matrix,
+    ...     prediction_start=20,
+    ...     window_length=12,
+    ...     predictions=ml_predictions,
+    ...     true_labels=labels,
+    ...     event_times=event_times
+    ... )
+    >>> print(f"Patient classified as: {analysis['classification']}")
+    """
+    n_patients, n_timesteps = temporal_risk_matrix.shape
+
+    # Extract patient data
+    patient_risks = temporal_risk_matrix[patient_id, :]
+    patient_pred = predictions[patient_id]
+    patient_label = true_labels[patient_id]
+    patient_event_time = event_times[patient_id]
+
+    # Determine classification
+    pred_binary = 1 if patient_pred >= 0.5 else 0  # Default threshold
+    if patient_label == 1 and pred_binary == 1:
+        classification = "True Positive"
+        class_color = '#2E7D32'  # Dark green
+    elif patient_label == 0 and pred_binary == 1:
+        classification = "False Positive"
+        class_color = '#F57C00'  # Orange
+    elif patient_label == 0 and pred_binary == 0:
+        classification = "True Negative"
+        class_color = '#1976D2'  # Blue
+    else:
+        classification = "False Negative"
+        class_color = '#D32F2F'  # Red
+
+    # Calculate integrated risk if not provided
+    if integrated_risks is None:
+        window_risks = patient_risks[
+            prediction_start:prediction_start + window_length
+        ]
+        timestep_duration = 1/52
+        clipped_risks = np.clip(window_risks, 1e-10, 1 - 1e-10)
+        timestep_hazards = -np.log(1 - clipped_risks) / timestep_duration
+        cumulative_hazard = np.sum(timestep_hazards) * timestep_duration
+        integrated_risk = 1 - np.exp(-cumulative_hazard)
+    else:
+        integrated_risk = integrated_risks[patient_id]
+        window_risks = patient_risks[
+            prediction_start:prediction_start + window_length
+        ]
+        # Calculate cumulative hazard for display
+        clipped_risks = np.clip(window_risks, 1e-10, 1 - 1e-10)
+        timestep_hazards = -np.log(1 - clipped_risks) / timestep_duration
+        cumulative_hazard = np.sum(timestep_hazards) * timestep_duration
+
+    # Create figure with GridSpec for better layout control
+    fig = plt.figure(figsize=figsize)
+    gs = GridSpec(4, 4, figure=fig, hspace=0.3, wspace=0.3)
+
+    # Title
+    fig.suptitle(
+        f'Patient {patient_id} - AI Quadrant Analysis - {classification}',
+        fontsize=20, fontweight='bold', color=class_color
+    )
+
+    # Panel 1: Full year risk trajectory
+    ax1 = fig.add_subplot(gs[0, :2])
+    weeks = np.arange(n_timesteps)
+    ax1.plot(weeks, patient_risks, 'b-', linewidth=2, label='Risk Level')
+
+    # Mark prediction window
+    ax1.axvspan(prediction_start, prediction_start + window_length,
+                alpha=0.3, color='yellow', label='Prediction Window')
+
+    # Mark event if it occurred
+    if patient_event_time >= 0:
+        ax1.plot(patient_event_time, patient_risks[patient_event_time],
+                 'r*', markersize=20, label='Event Occurred')
+
+    # Add base risk line if available
+    if base_risks is not None:
+        ax1.axhline(base_risks[patient_id], color='green', linestyle=':',
+                    alpha=0.7,
+                    label=f'Base Risk: {base_risks[patient_id]:.3f}')
+
+    ax1.set_xlabel('Week')
+    ax1.set_ylabel('Risk Level')
+    ax1.set_title('Full Year Risk Trajectory')
+    ax1.legend(loc='best')
+    ax1.grid(True, alpha=0.3)
+    ax1.set_ylim(0, max(patient_risks.max() * 1.1, 0.1))
+
+    # Panel 2: Cumulative hazard and event generation
+    ax2 = fig.add_subplot(gs[0, 2:])
+
+    # Calculate cumulative hazard over time
+    cumulative_hazards = []
+    for t in range(1, n_timesteps + 1):
+        risks_up_to_t = patient_risks[:t]
+        clipped = np.clip(risks_up_to_t, 1e-10, 1 - 1e-10)
+        hazards = -np.log(1 - clipped) / timestep_duration
+        cum_hazard = np.sum(hazards) * timestep_duration
+        cumulative_hazards.append(cum_hazard)
+
+    ax2.plot(weeks, cumulative_hazards, 'purple', linewidth=2)
+    ax2.fill_between(weeks, 0, cumulative_hazards, alpha=0.3, color='purple')
+    ax2.set_xlabel('Week')
+    ax2.set_ylabel('Cumulative Hazard')
+    ax2.set_title('Cumulative Hazard Over Time')
+    ax2.grid(True, alpha=0.3)
+
+    # Add event probability on secondary y-axis
+    ax2_twin = ax2.twinx()
+    event_probs = 1 - np.exp(-np.array(cumulative_hazards))
+    ax2_twin.plot(weeks, event_probs, 'g--', linewidth=2, alpha=0.7)
+    ax2_twin.set_ylabel('Event Probability', color='g')
+    ax2_twin.tick_params(axis='y', labelcolor='g')
+
+    # Panel 3: Prediction window detail
+    ax3 = fig.add_subplot(gs[1, :2])
+    window_weeks = np.arange(window_length)
+    ax3.bar(window_weeks, window_risks, alpha=0.7, color='skyblue')
+    ax3.plot(window_weeks, window_risks, 'ro-', linewidth=2, markersize=8)
+
+    # Add integrated risk line
+    ax3.axhline(integrated_risk, color='red', linestyle='--',
+                linewidth=2, label=f'Integrated Risk: {integrated_risk:.3f}')
+
+    ax3.set_xlabel('Week in Window')
+    ax3.set_ylabel('Risk Level')
+    ax3.set_title('Prediction Window Risk Details')
+    ax3.legend()
+    ax3.grid(True, alpha=0.3)
+
+    # Add statistics
+    stats_text = (
+        f'Mean: {np.mean(window_risks):.3f}\n'
+        f'Std: {np.std(window_risks):.3f}\n'
+        f'Min: {np.min(window_risks):.3f}\n'
+        f'Max: {np.max(window_risks):.3f}'
+    )
+    ax3.text(0.95, 0.95, stats_text, transform=ax3.transAxes,
+             ha='right', va='top', bbox=dict(boxstyle='round',
+                                             facecolor='wheat', alpha=0.8))
+
+    # Panel 4: Risk components breakdown
+    ax4 = fig.add_subplot(gs[1, 2:])
+    components = ['Base Risk', 'Mean Window\nRisk',
+                  'Integrated\nRisk', 'ML\nPrediction']
+    values = [
+        base_risks[patient_id] if base_risks is not None else np.mean(
+            patient_risks),
+        np.mean(window_risks),
+        integrated_risk,
+        patient_pred
+    ]
+    colors = ['green', 'orange', 'red', 'purple']
+
+    bars = ax4.bar(components, values, color=colors, alpha=0.7)
+    ax4.set_ylabel('Risk/Prediction Value')
+    ax4.set_title('Risk Components Comparison')
+    ax4.set_ylim(0, max(values) * 1.2)
+
+    # Add value labels
+    for bar, val in zip(bars, values):
+        ax4.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+                 f'{val:.3f}', ha='center', va='bottom', fontweight='bold')
+
+    # Panel 5: Event timeline
+    ax5 = fig.add_subplot(gs[2, :])
+
+    # Create timeline
+    ax5.axhline(0, color='black', linewidth=2)
+    ax5.set_xlim(-5, n_timesteps + 5)
+    ax5.set_ylim(-1, 1)
+
+    # Mark key time points
+    ax5.scatter(0, 0, s=100, c='green', marker='o', zorder=5)
+    ax5.text(0, 0.1, 'Start', ha='center', va='bottom')
+
+    ax5.scatter(prediction_start, 0, s=150, c='blue', marker='s', zorder=5)
+    ax5.text(prediction_start, -0.1, 'Prediction\nStart',
+             ha='center', va='top')
+
+    ax5.scatter(prediction_start + window_length, 0, s=150, c='purple',
+                marker='s', zorder=5)
+    ax5.text(prediction_start + window_length, 0.1, 'Window\nEnd',
+             ha='center', va='bottom')
+
+    # Mark event if occurred
+    if patient_event_time >= 0:
+        ax5.scatter(patient_event_time, 0, s=300, c='red',
+                    marker='*', zorder=6)
+        ax5.text(patient_event_time, -0.2, 'EVENT',
+                 ha='center', va='top', fontweight='bold', color='red')
+
+    # Mark intervention if applicable
+    if intervention_mask is not None and intervention_mask[patient_id]:
+        ax5.scatter(prediction_start + window_length + 1, 0, s=200,
+                    c='darkgreen', marker='^', zorder=5)
+        ax5.text(prediction_start + window_length + 1, 0.1,
+                 'Intervention', ha='center', va='bottom', color='darkgreen')
+
+    ax5.set_xlabel('Week')
+    ax5.set_title('Event Timeline')
+    ax5.set_yticks([])
+    ax5.grid(True, axis='x', alpha=0.3)
+
+    # Panel 6: Confusion matrix position
+    ax6 = fig.add_subplot(gs[2, 2:])
+
+    # Create confusion matrix visualization
+    cm_data = np.array([[0.5, 0.2], [0.1, 0.2]])  # Example proportions
+
+    # Highlight patient's position
+    if classification == "True Positive":
+        cm_data[1, 1] = 1.0
+    elif classification == "False Positive":
+        cm_data[1, 0] = 1.0
+    elif classification == "True Negative":
+        cm_data[0, 0] = 1.0
+    else:  # False Negative
+        cm_data[0, 1] = 1.0
+
+    sns.heatmap(cm_data, annot=False, cmap='Blues', ax=ax6,
+                cbar=False, vmin=0, vmax=1)
+
+    # Add labels
+    ax6.set_xticklabels(['Predicted\nNegative', 'Predicted\nPositive'])
+    ax6.set_yticklabels(['True\nNegative', 'True\nPositive'])
+    ax6.set_title(f'Confusion Matrix Position: {classification}')
+
+    # Add quadrant labels
+    quadrant_labels = [
+        ('TN', 0.5, 0.5),
+        ('FP', 1.5, 0.5),
+        ('FN', 0.5, 1.5),
+        ('TP', 1.5, 1.5)
+    ]
+
+    for label, x, y in quadrant_labels:
+        color = 'white' if (label == classification[:2]) else 'gray'
+        weight = 'bold' if (label == classification[:2]) else 'normal'
+        ax6.text(x, y, label, ha='center', va='center',
+                 fontsize=16, color=color, fontweight=weight)
+
+    # Panel 7: Risk evolution patterns
+    ax7 = fig.add_subplot(gs[3, :2])
+
+    # Calculate risk changes
+    risk_changes = np.diff(patient_risks)
+    ax7.plot(weeks[1:], risk_changes, 'b-', linewidth=2, alpha=0.7)
+    ax7.fill_between(weeks[1:], 0, risk_changes,
+                     where=(risk_changes > 0).tolist(),
+                     color='red', alpha=0.3, label='Risk Increase')
+    ax7.fill_between(weeks[1:], 0, risk_changes,
+                     where=(risk_changes < 0).tolist(),
+                     color='green', alpha=0.3, label='Risk Decrease')
+
+    ax7.axhline(0, color='black', linestyle='-', alpha=0.3)
+    ax7.set_xlabel('Week')
+    ax7.set_ylabel('Risk Change')
+    ax7.set_title('Week-to-Week Risk Evolution')
+    ax7.legend()
+    ax7.grid(True, alpha=0.3)
+
+    # Panel 8: Patient summary statistics
+    ax8 = fig.add_subplot(gs[3, 2:])
+    ax8.axis('off')
+
+    # Calculate percentiles
+    risk_percentile = stats.percentileofscore(
+        temporal_risk_matrix.flatten(), integrated_risk
+    )
+    pred_percentile = stats.percentileofscore(predictions, patient_pred)
+
+    # Format base risk value
+    base_risk_str = (f"{base_risks[patient_id]:.3f}"
+                     if base_risks is not None else "N/A")
+    summary_text = f"""Patient {patient_id} Summary:
+
+Classification: {classification}
+Base Risk: {base_risk_str}
+Risk Percentile: {risk_percentile:.1f}%
+
+Temporal Statistics:
+- Mean Risk (full year): {np.mean(patient_risks):.3f}
+- Risk Volatility (std): {np.std(patient_risks):.3f}
+- Risk Trend: {"Increasing" if patient_risks[-1] > patient_risks[0] else "Decreasing"}
+
+Prediction Window:
+- Start Week: {prediction_start}
+- Window Length: {window_length} weeks
+- Mean Window Risk: {np.mean(window_risks):.3f}
+- Integrated Risk: {integrated_risk:.3f}
+- Cumulative Hazard: {cumulative_hazard:.3f}
+
+ML Prediction:
+- Prediction Score: {patient_pred:.3f}
+- Prediction Percentile: {pred_percentile:.1f}%
+- True Label: {patient_label}
+- Event Time: {f"Week {patient_event_time}"
+               if patient_event_time >= 0 else "No Event"}
+
+Clinical Impact:
+- Intervention: {"Yes" if intervention_mask is not None and
+                 intervention_mask[patient_id] else "No"}
+- Outcome: {classification}
+"""
+
+    ax8.text(0.1, 0.9, summary_text, transform=ax8.transAxes,
+             fontsize=12, va='top', family='monospace',
+             bbox=dict(boxstyle='round', facecolor='lightgray', alpha=0.8))
+
+    plt.tight_layout()
+
+    # Prepare return dictionary
+    analysis_results = {
+        'patient_id': patient_id,
+        'classification': classification,
+        'base_risk': (base_risks[patient_id]
+                      if base_risks is not None else None),
+        'integrated_risk': integrated_risk,
+        'ml_prediction': patient_pred,
+        'true_label': patient_label,
+        'event_time': patient_event_time,
+        'risk_trajectory': patient_risks,
+        'window_risks': window_risks,
+        'cumulative_hazard': cumulative_hazard,
+        'risk_percentile': risk_percentile,
+        'prediction_percentile': pred_percentile
+    }
+
+    if show_plot:
+        plt.show()
+    else:
+        analysis_results['figure'] = fig
+        plt.close(fig)
+
+    return analysis_results
+
+
+@log_call
+def plot_ai_quadrant(
+    true_risks: np.ndarray,
+    predictions: np.ndarray,
+    true_events: np.ndarray,
+    intervention_mask: Optional[np.ndarray] = None,
+    risk_threshold: float = 0.1,
+    prediction_threshold: Optional[float] = None,
+    title: str = "AI Intervention Quadrant Analysis",
+    figsize: Tuple[int, int] = (12, 10),
+    show_stats: bool = True,
+    highlight_interventions: bool = True,
+    show_plot: bool = True
+) -> Tuple[plt.Figure, Dict[str, Any]]:
+    """
+    Create AI Quadrant visualization for intervention analysis.
+
+    This function creates a 2x2 scatter plot showing the relationship between
+    true risk and AI predictions, with quadrants representing differen
+    intervention scenarios:
+    - High Risk + AI Flagged → High Priority (should intervene)
+    - High Risk + AI Missed → Missed Opportunities
+    - Low Risk + AI Flagged → False Alarms
+    - Low Risk + AI Correct → Correct Rejections
+
+    Parameters
+    ----------
+    true_risks : np.ndarray
+        True underlying risks for each patien
+    predictions : np.ndarray
+        AI prediction scores for each patien
+    true_events : np.ndarray
+        Binary array indicating which patients had events
+    intervention_mask : np.ndarray, optional
+        Boolean mask indicating which patients received intervention
+    risk_threshold : float, default=0.1
+        Threshold for defining "high risk" patients
+    prediction_threshold : float, optional
+        Threshold for AI predictions. If None, uses median of predictions
+    title : str, default="AI Intervention Quadrant Analysis"
+        Title for the plo
+    figsize : tuple, default=(12, 10)
+        Figure size for the visualization
+    show_stats : bool, default=True
+        Whether to display quadrant statistics
+    highlight_interventions : bool, default=True
+        Whether to highlight patients who received interventions
+    show_plot : bool, default=True
+        Whether to display the plo
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        The matplotlib figure objec
+    stats : dic
+        Dictionary containing quadrant statistics and metrics
+
+    Examples
+    --------
+    >>> fig, stats = plot_ai_quadrant(
+    ...     true_risks=integrated_risks,
+    ...     predictions=ml_predictions,
+    ...     true_events=event_occurred,
+    ...     intervention_mask=intervention_patients
+    ... )
+    >>> print(f"High priority patients: {stats['high_priority']['count']}")
+    """
+    # Determine prediction threshold if not provided
+    if prediction_threshold is None:
+        prediction_threshold = np.median(predictions)
+
+    # Create quadrant classifications
+    high_risk = true_risks >= risk_threshold
+    ai_flagged = predictions >= prediction_threshold
+
+    # Define quadrants
+    high_priority = high_risk & ai_flagged      # High risk + AI flagged
+    missed_opportunities = high_risk & ~ai_flagged  # High risk + AI missed
+    false_alarms = ~high_risk & ai_flagged     # Low risk + AI flagged
+    correct_rejections = ~high_risk & ~ai_flagged  # Low risk + AI correc
+
+    # Create figure and axis
+    fig, ax = plt.subplots(figsize=figsize)
+
+    # Define colors for outcomes (if needed later)
+    # event_colors = {
+    #     'No Event': '#1976D2',      # Blue
+    #     'Event': '#D32F2F'          # Red
+    # }
+
+    # Plot points by quadrant and event status
+    quadrants = [
+        ('High Priority', high_priority, '#2E7D32'),      # Dark green
+        ('Missed Opportunities', missed_opportunities, '#FF5722'),
+        # Deep orange
+        ('False Alarms', false_alarms, '#FF9800'),        # Orange
+        ('Correct Rejections', correct_rejections, '#4CAF50')
+        # Green
+    ]
+
+    # Plot each quadran
+    for quad_name, mask, quad_color in quadrants:
+        if np.sum(mask) > 0:
+            # Separate by event status
+            quad_no_event = mask & (true_events == 0)
+            quad_event = mask & (true_events == 1)
+
+            # Plot patients without events
+            if np.sum(quad_no_event) > 0:
+                ax.scatter(
+                    true_risks[quad_no_event],
+                    predictions[quad_no_event],
+                    c=quad_color,
+                    alpha=0.6,
+                    s=60,
+                    marker='o',
+                    edgecolors='white',
+                    linewidth=0.5,
+                    label=f'{quad_name} (No Event)'
+                )
+
+            # Plot patients with events (use different marker)
+            if np.sum(quad_event) > 0:
+                ax.scatter(
+                    true_risks[quad_event],
+                    predictions[quad_event],
+                    c=quad_color,
+                    alpha=0.8,
+                    s=100,
+                    marker='*',
+                    edgecolors='black',
+                    linewidth=1,
+                    label=f'{quad_name} (Event)'
+                )
+
+    # Highlight interventions if requested
+    if highlight_interventions and intervention_mask is not None:
+        intervention_patients = intervention_mask == 1
+        if np.sum(intervention_patients) > 0:
+            ax.scatter(
+                true_risks[intervention_patients],
+                predictions[intervention_patients],
+                facecolors='none',
+                edgecolors='purple',
+                linewidth=3,
+                s=150,
+                marker='s',
+                label='Received Intervention'
+            )
+
+    # Add quadrant boundary lines
+    ax.axhline(y=prediction_threshold, color='black', linestyle='--',
+               linewidth=2, alpha=0.7, label='Prediction Threshold')
+    ax.axvline(x=risk_threshold, color='black', linestyle='--',
+               linewidth=2, alpha=0.7, label='Risk Threshold')
+
+    # Calculate quadrant centers for labels
+    x_low = ax.get_xlim()[0] + (risk_threshold - ax.get_xlim()[0]) / 2
+    x_high = risk_threshold + (ax.get_xlim()[1] - risk_threshold) / 2
+    y_low = ax.get_ylim()[0] + (prediction_threshold - ax.get_ylim()[0]) / 2
+    y_high = prediction_threshold + \
+        (ax.get_ylim()[1] - prediction_threshold) / 2
+
+    # Add quadrant background colors
+    ax.axhspan(prediction_threshold, ax.get_ylim()[1],
+               xmin=0, xmax=(risk_threshold - ax.get_xlim()[0]) /
+               (ax.get_xlim()[1] - ax.get_xlim()[0]),
+               alpha=0.1, color='orange')  # False Alarms
+    ax.axhspan(prediction_threshold, ax.get_ylim()[1],
+               xmin=(risk_threshold - ax.get_xlim()[0]) /
+               (ax.get_xlim()[1] - ax.get_xlim()[0]), xmax=1,
+               alpha=0.1, color='green')   # High Priority
+    ax.axhspan(ax.get_ylim()[0], prediction_threshold,
+               xmin=0, xmax=(risk_threshold - ax.get_xlim()[0]) /
+               (ax.get_xlim()[1] - ax.get_xlim()[0]),
+               alpha=0.1, color='lightgreen')  # Correct Rejections
+    ax.axhspan(ax.get_ylim()[0], prediction_threshold,
+               xmin=(risk_threshold - ax.get_xlim()[0]) /
+               (ax.get_xlim()[1] - ax.get_xlim()[0]), xmax=1,
+               alpha=0.1, color='red')     # Missed Opportunities
+
+    # Add quadrant text labels
+    label_props: Dict[str, Any] = dict(
+        fontsize=12, fontweight='bold', ha='center',
+        va='center',
+        bbox=dict(boxstyle='round,pad=0.3',
+                  facecolor='white', alpha=0.8))
+
+    # Only add labels if we have reasonable space
+    if (ax.get_xlim()[1] - ax.get_xlim()[0] > 0.05 and
+            ax.get_ylim()[1] - ax.get_ylim()[0] > 0.05):
+        ax.text(x_low, y_high, 'False\nAlarms', **label_props)
+        ax.text(x_high, y_high, 'High\nPriority', **label_props)
+        ax.text(x_low, y_low, 'Correct\nRejections', **label_props)
+        ax.text(x_high, y_low, 'Missed\nOpportunities', **label_props)
+
+    # Customize plo
+    ax.set_xlabel('True Risk', fontsize=12)
+    ax.set_ylabel('AI Prediction Score', fontsize=12)
+    ax.set_title(title, fontsize=14, fontweight='bold')
+    ax.grid(True, alpha=0.3)
+    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    # Calculate statistics
+    stats = {
+        'high_priority': {
+            'count': np.sum(high_priority),
+            'event_rate': (np.mean(true_events[high_priority])
+                           if np.sum(high_priority) > 0 else 0),
+            'mean_risk': (np.mean(true_risks[high_priority])
+                          if np.sum(high_priority) > 0 else 0),
+            'mean_prediction': (np.mean(predictions[high_priority])
+                                if np.sum(high_priority) > 0 else 0)
+        },
+        'missed_opportunities': {
+            'count': np.sum(missed_opportunities),
+            'event_rate': (np.mean(true_events[missed_opportunities])
+                           if np.sum(missed_opportunities) > 0 else 0),
+            'mean_risk': (np.mean(true_risks[missed_opportunities])
+                          if np.sum(missed_opportunities) > 0 else 0),
+            'mean_prediction': (np.mean(predictions[missed_opportunities])
+                                if np.sum(missed_opportunities) > 0 else 0)
+        },
+        'false_alarms': {
+            'count': np.sum(false_alarms),
+            'event_rate': (np.mean(true_events[false_alarms])
+                           if np.sum(false_alarms) > 0 else 0),
+            'mean_risk': (np.mean(true_risks[false_alarms])
+                          if np.sum(false_alarms) > 0 else 0),
+            'mean_prediction': (np.mean(predictions[false_alarms])
+                                if np.sum(false_alarms) > 0 else 0)
+        },
+        'correct_rejections': {
+            'count': np.sum(correct_rejections),
+            'event_rate': (np.mean(true_events[correct_rejections])
+                           if np.sum(correct_rejections) > 0 else 0),
+            'mean_risk': (np.mean(true_risks[correct_rejections])
+                          if np.sum(correct_rejections) > 0 else 0),
+            'mean_prediction': (np.mean(predictions[correct_rejections])
+                                if np.sum(correct_rejections) > 0 else 0)
+        },
+        'thresholds': {
+            'risk_threshold': risk_threshold,
+            'prediction_threshold': prediction_threshold
+        },
+        'overall': {
+            'total_patients': len(true_risks),
+            'total_events': np.sum(true_events),
+            'event_rate': np.mean(true_events),
+            'interventions': (np.sum(intervention_mask)
+                              if intervention_mask is not None else 0)
+        }
+    }
+
+    # Add statistics text if requested
+    if show_stats:
+        stats_text = f"""Quadrant Statistics:
+High Priority: {stats['high_priority']['count']} patients
+  Event Rate: {stats['high_priority']['event_rate']:.1%}
+
+Missed Opportunities: {stats['missed_opportunities']['count']} patients
+  Event Rate: {stats['missed_opportunities']['event_rate']:.1%}
+
+False Alarms: {stats['false_alarms']['count']} patients
+  Event Rate: {stats['false_alarms']['event_rate']:.1%}
+
+Correct Rejections: {stats['correct_rejections']['count']} patients
+  Event Rate: {stats['correct_rejections']['event_rate']:.1%}"""
+
+        ax.text(0.02, 0.98, stats_text, transform=ax.transAxes,
+                fontsize=10, va='top', ha='left', family='monospace',
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.9))
+
+    plt.tight_layout()
+
+    if show_plot:
+        plt.show()
+    else:
+        plt.close(fig)
+
+    return fig, stats
+
+
+@log_call
+def analyze_patients_by_outcome(
+    temporal_risk_matrix: np.ndarray,
+    predictions: np.ndarray,
+    true_labels: np.ndarray,
+    event_times: np.ndarray,
+    prediction_start: int,
+    window_length: int,
+    integrated_risks: Optional[np.ndarray] = None,
+    base_risks: Optional[np.ndarray] = None,
+    threshold: float = 0.5,
+    n_samples_per_quadrant: int = 5,
+    figsize: Tuple[int, int] = (16, 12),
+    show_plot: bool = True
+) -> Dict[str, Any]:
+    """
+    Analyze multiple patients grouped by their prediction outcome quadrant.
+
+    This function provides insights into how different types of patients
+    (TP, FP, TN, FN) differ in their risk patterns and characteristics.
+
+    Parameters
+    ----------
+    temporal_risk_matrix : np.ndarray
+        Complete temporal risk matrix, shape (n_patients, n_timesteps)
+    predictions : np.ndarray
+        ML predictions for all patients
+    true_labels : np.ndarray
+        True binary outcomes for all patients
+    event_times : np.ndarray
+        Time of first event for each patient (-1 if no event)
+    prediction_start : in
+        Starting timestep for the prediction window
+    window_length : in
+        Length of the prediction window in timesteps
+    integrated_risks : np.ndarray, optional
+        Integrated risks over prediction window
+    base_risks : np.ndarray, optional
+        Static base risks for all patients
+    threshold : float, default=0.5
+        Classification threshold for binary predictions
+    n_samples_per_quadrant : int, default=5
+        Number of sample patients to analyze per quadran
+    figsize : tuple, default=(16, 12)
+        Figure size for the visualization
+    show_plot : bool, default=True
+        Whether to display the plo
+
+    Returns
+    -------
+    analysis_results : dic
+        Dictionary containing:
+        - quadrant_stats: DataFrame with statistics by quadran
+        - sample_patients: dict with patient IDs by quadran
+        - risk_patterns: dict with risk pattern analysis
+        - figure: matplotlib.figure.Figure (if show_plot=False)
+
+    Examples
+    --------
+    >>> analysis = analyze_patients_by_outcome(
+    ...     temporal_matrix, predictions, labels, event_times,
+    ...     prediction_start=20, window_length=12
+    ... )
+    >>> print(analysis['quadrant_stats'])
+    """
+    n_patients, n_timesteps = temporal_risk_matrix.shape
+
+    # Create binary predictions
+    binary_predictions = (predictions >= threshold).astype(int)
+
+    # Identify quadrants
+    tp_mask = (true_labels == 1) & (binary_predictions == 1)
+    fp_mask = (true_labels == 0) & (binary_predictions == 1)
+    tn_mask = (true_labels == 0) & (binary_predictions == 0)
+    fn_mask = (true_labels == 1) & (binary_predictions == 0)
+
+    quadrant_masks = {
+        'True Positive': tp_mask,
+        'False Positive': fp_mask,
+        'True Negative': tn_mask,
+        'False Negative': fn_mask
+    }
+
+    quadrant_colors = {
+        'True Positive': '#2E7D32',
+        'False Positive': '#F57C00',
+        'True Negative': '#1976D2',
+        'False Negative': '#D32F2F'
+    }
+
+    # Calculate integrated risks if not provided
+    if integrated_risks is None:
+        window_risks = temporal_risk_matrix[:, prediction_start:
+                                            prediction_start + window_length]
+        timestep_duration = 1/52
+        clipped_risks = np.clip(window_risks, 1e-10, 1 - 1e-10)
+        timestep_hazards = -np.log(1 - clipped_risks) / timestep_duration
+        cumulative_hazards = np.sum(
+            timestep_hazards, axis=1) * timestep_duration
+        integrated_risks = 1 - np.exp(-cumulative_hazards)
+
+    # Calculate statistics for each quadran
+    quadrant_stats = []
+    sample_patients = {}
+
+    for quadrant, mask in quadrant_masks.items():
+        n_patients_in_quadrant = np.sum(mask)
+
+        if n_patients_in_quadrant > 0:
+            # Basic statistics
+            quadrant_integrated_risks = integrated_risks[mask]
+            quadrant_predictions = predictions[mask]
+            quadrant_base_risks = (base_risks[mask] if base_risks is not None
+                                   else np.nan)
+
+            # Temporal statistics
+            quadrant_risk_volatility = np.std(
+                temporal_risk_matrix[mask], axis=1)
+            quadrant_risk_trends = []
+
+            for i in np.where(mask)[0]:
+                trend = ('Increasing' if temporal_risk_matrix[i, -1] >
+                         temporal_risk_matrix[i, 0] else 'Decreasing')
+                quadrant_risk_trends.append(trend)
+
+            increasing_pct = np.mean(
+                [t == 'Increasing' for t in quadrant_risk_trends])
+
+            # Event timing analysis
+            quadrant_event_times = event_times[mask]
+            has_events = quadrant_event_times >= 0
+
+            stats = {
+                'quadrant': quadrant,
+                'n_patients': n_patients_in_quadrant,
+                'percentage': n_patients_in_quadrant / n_patients * 100,
+                'mean_integrated_risk': np.mean(quadrant_integrated_risks),
+                'std_integrated_risk': np.std(quadrant_integrated_risks),
+                'mean_prediction': np.mean(quadrant_predictions),
+                'std_prediction': np.std(quadrant_predictions),
+                'mean_base_risk': (np.mean(quadrant_base_risks)
+                                   if base_risks is not None else np.nan),
+                'mean_risk_volatility': np.mean(quadrant_risk_volatility),
+                'increasing_trend_pct': increasing_pct * 100,
+                'event_rate': np.mean(has_events) * 100,
+                'mean_event_time': (np.mean(quadrant_event_times[has_events])
+                                    if np.any(has_events) else np.nan)
+            }
+
+            quadrant_stats.append(stats)
+
+            # Sample patients for detailed analysis
+            if n_patients_in_quadrant >= n_samples_per_quadrant:
+                sample_indices = np.random.choice(
+                    np.where(mask)[0],
+                    n_samples_per_quadrant,
+                    replace=False
+                )
+            else:
+                sample_indices = np.where(mask)[0]
+
+            sample_patients[quadrant] = sample_indices
+
+    quadrant_stats_df = pd.DataFrame(quadrant_stats)
+
+    # Create visualization
+    fig = plt.figure(figsize=figsize)
+    gs = GridSpec(3, 3, figure=fig, hspace=0.3, wspace=0.3)
+
+    fig.suptitle('AI Quadrant Analysis - Patient Outcomes by Prediction Type',
+                 fontsize=16, fontweight='bold')
+
+    # Panel 1: Quadrant overview
+    ax1 = fig.add_subplot(gs[0, 0])
+
+    if not quadrant_stats_df.empty:
+        quadrant_names = quadrant_stats_df['quadrant'].tolist()
+        quadrant_counts = quadrant_stats_df['n_patients'].tolist()
+        colors = [quadrant_colors[q] for q in quadrant_names]
+
+        bars = ax1.bar(range(len(quadrant_names)),
+                       quadrant_counts, color=colors, alpha=0.7)
+        ax1.set_xticks(range(len(quadrant_names)))
+        ax1.set_xticklabels([q.replace(' ', '\n')
+                            for q in quadrant_names], rotation=0)
+        ax1.set_ylabel('Number of Patients')
+        ax1.set_title('Patients by Quadrant')
+
+        # Add percentage labels
+        for bar, count, pct in zip(bars, quadrant_counts,
+                                   quadrant_stats_df['percentage']):
+            ax1.text(bar.get_x() + bar.get_width()/2,
+                     bar.get_height() + 0.5, f'{count}\n({pct:.1f}%)',
+                     ha='center', va='bottom', fontweight='bold')
+
+    # Panel 2: Risk distributions by quadran
+    ax2 = fig.add_subplot(gs[0, 1])
+
+    for quadrant, mask in quadrant_masks.items():
+        if np.sum(mask) > 0:
+            quadrant_risks = integrated_risks[mask]
+            ax2.hist(quadrant_risks, bins=20, alpha=0.6, density=True,
+                     label=quadrant, color=quadrant_colors[quadrant])
+
+    ax2.set_xlabel('Integrated Risk')
+    ax2.set_ylabel('Density')
+    ax2.set_title('Risk Distribution by Quadrant')
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+
+    # Panel 3: Prediction distributions by quadran
+    ax3 = fig.add_subplot(gs[0, 2])
+
+    for quadrant, mask in quadrant_masks.items():
+        if np.sum(mask) > 0:
+            quadrant_preds = predictions[mask]
+            ax3.hist(quadrant_preds, bins=20, alpha=0.6, density=True,
+                     label=quadrant, color=quadrant_colors[quadrant])
+
+    ax3.axvline(threshold, color='black', linestyle='--',
+                linewidth=2, label='Threshold')
+    ax3.set_xlabel('ML Prediction')
+    ax3.set_ylabel('Density')
+    ax3.set_title('Prediction Distribution by Quadrant')
+    ax3.legend()
+    ax3.grid(True, alpha=0.3)
+
+    # Panel 4: Risk vs Prediction scatter
+    ax4 = fig.add_subplot(gs[1, :])
+
+    for quadrant, mask in quadrant_masks.items():
+        if np.sum(mask) > 0:
+            ax4.scatter(integrated_risks[mask], predictions[mask],
+                        alpha=0.6, s=50, label=quadrant,
+                        color=quadrant_colors[quadrant])
+
+    ax4.axhline(threshold, color='black', linestyle='--',
+                alpha=0.7, label='Threshold')
+    ax4.set_xlabel('Integrated Risk')
+    ax4.set_ylabel('ML Prediction')
+    ax4.set_title('Risk vs Prediction by Quadrant')
+    ax4.legend()
+    ax4.grid(True, alpha=0.3)
+
+    # Panel 5: Risk volatility comparison
+    ax5 = fig.add_subplot(gs[2, 0])
+
+    if not quadrant_stats_df.empty:
+        volatility_means = quadrant_stats_df['mean_risk_volatility'].tolist()
+        quadrant_names = quadrant_stats_df['quadrant'].tolist()
+        colors = [quadrant_colors[q] for q in quadrant_names]
+
+        bars = ax5.bar(range(len(quadrant_names)),
+                       volatility_means, color=colors, alpha=0.7)
+        ax5.set_xticks(range(len(quadrant_names)))
+        ax5.set_xticklabels([q.replace(' ', '\n')
+                            for q in quadrant_names], rotation=0)
+        ax5.set_ylabel('Mean Risk Volatility')
+        ax5.set_title('Risk Volatility by Quadrant')
+
+        # Add value labels
+        for bar, vol in zip(bars, volatility_means):
+            ax5.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.001,
+                     f'{vol:.3f}', ha='center', va='bottom', fontweight='bold')
+
+    # Panel 6: Event timing analysis
+    ax6 = fig.add_subplot(gs[2, 1])
+
+    if not quadrant_stats_df.empty:
+        event_rates = quadrant_stats_df['event_rate'].tolist()
+        quadrant_names = quadrant_stats_df['quadrant'].tolist()
+        colors = [quadrant_colors[q] for q in quadrant_names]
+
+        bars = ax6.bar(range(len(quadrant_names)),
+                       event_rates, color=colors, alpha=0.7)
+        ax6.set_xticks(range(len(quadrant_names)))
+        ax6.set_xticklabels([q.replace(' ', '\n')
+                            for q in quadrant_names], rotation=0)
+        ax6.set_ylabel('Event Rate (%)')
+        ax6.set_title('Event Rate by Quadrant')
+
+        # Add value labels
+        for bar, rate in zip(bars, event_rates):
+            ax6.text(bar.get_x() + bar.get_width()/2,
+                     bar.get_height() + 0.5, f'{rate:.1f}%',
+                     ha='center', va='bottom', fontweight='bold')
+
+    # Panel 7: Summary statistics table
+    ax7 = fig.add_subplot(gs[2, 2])
+    ax7.axis('off')
+
+    if not quadrant_stats_df.empty:
+        # Create summary table
+        summary_data = []
+        for _, row in quadrant_stats_df.iterrows():
+            summary_data.append([
+                row['quadrant'][:2],  # Abbreviation
+                f"{row['n_patients']}",
+                f"{row['mean_integrated_risk']:.3f}",
+                f"{row['mean_prediction']:.3f}",
+                f"{row['event_rate']:.1f}%"
+            ])
+
+        # Create table
+        table = ax7.table(cellText=summary_data,
+                          colLabels=['Type', 'N', 'Risk', 'Pred', 'Events'],
+                          cellLoc='center',
+                          loc='center',
+                          colWidths=[0.15, 0.15, 0.2, 0.2, 0.2])
+
+        table.auto_set_font_size(False)
+        table.set_fontsize(10)
+        table.scale(1, 2)
+
+        # Color code rows
+        for i, row in enumerate(summary_data):
+            quadrant_full = [k for k, v in {
+                'TP': 'True Positive', 'FP': 'False Positive',
+                'TN': 'True Negative', 'FN': 'False Negative'
+            }.items() if v.startswith(row[0])][0]
+            quadrant_name = {
+                'TP': 'True Positive', 'FP': 'False Positive',
+                'TN': 'True Negative', 'FN': 'False Negative'
+            }[quadrant_full]
+
+            for j in range(5):
+                table[(i+1, j)].set_facecolor(quadrant_colors[quadrant_name])
+                table[(i+1, j)].set_alpha(0.3)
+
+        ax7.set_title('Summary Statistics')
+
+    plt.tight_layout()
+
+    # Risk pattern analysis
+    risk_patterns = {}
+    for quadrant, mask in quadrant_masks.items():
+        if np.sum(mask) > 0:
+            quadrant_trajectories = temporal_risk_matrix[mask]
+
+            # Calculate mean trajectory
+            mean_trajectory = np.mean(quadrant_trajectories, axis=0)
+
+            # Calculate correlation with time
+            time_points = np.arange(n_timesteps)
+            correlations = []
+            for i in range(np.sum(mask)):
+                if np.std(quadrant_trajectories[i]) > 0:
+                    corr = np.corrcoef(
+                        time_points, quadrant_trajectories[i])[0, 1]
+                    correlations.append(corr)
+
+            risk_patterns[quadrant] = {
+                'mean_trajectory': mean_trajectory,
+                'time_correlation': (np.mean(correlations)
+                                     if correlations else 0),
+                'trajectory_std': np.std(quadrant_trajectories, axis=0)
+            }
+
+    # Prepare return dictionary
+    analysis_results = {
+        'quadrant_stats': quadrant_stats_df,
+        'sample_patients': sample_patients,
+        'risk_patterns': risk_patterns,
+        'quadrant_masks': quadrant_masks,
+        'threshold': threshold,
+        'confusion_matrix': {
+            'tp': np.sum(tp_mask),
+            'fp': np.sum(fp_mask),
+            'tn': np.sum(tn_mask),
+            'fn': np.sum(fn_mask)
+        }
+    }
+
+    if show_plot:
+        plt.show()
+    else:
+        analysis_results['figure'] = fig
+        plt.close(fig)
+
+    return analysis_results

@@ -10,6 +10,7 @@ ipykernel>=6.0.0  # IPython kernel
 jupyter-client>=7.0.0  # Jupyter client
 ipytest>=0.13.0  # Embedded notebook testing
 ipython>=8.0.0  # Enhanced Python shell for notebooks
+ipywidgets>=8.0.0  # Interactive widgets for notebooks
 
 # Core dependencies
 numpy>=1.21.0
