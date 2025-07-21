@@ -8,6 +8,7 @@ single simulation framework optimized for causal inference research.
 
 import numpy as np
 from scipy import sparse  # type: ignore
+from sklearn.metrics import confusion_matrix  # type: ignore
 from typing import Optional, Dict, List, Tuple, Any
 import warnings
 from dataclasses import dataclass
@@ -87,6 +88,9 @@ class VectorizedTemporalRiskSimulator:
         Duration of each timestep as fraction of year
     prediction_window : int, default=12
         Length of prediction window in timesteps
+    intervention_duration : int, default=1
+        Duration of interventions in timesteps. Use -1 for full simulation
+        duration
     random_seed : int, optional
         Random seed for reproducibility
 
@@ -110,6 +114,7 @@ class VectorizedTemporalRiskSimulator:
         intervention_effectiveness: float = 0.25,
         timestep_duration: float = 1/52,
         prediction_window: int = 12,
+        intervention_duration: int = 1,
         random_seed: Optional[int] = None
     ):
         """Initialize the vectorized temporal risk simulator."""
@@ -119,6 +124,7 @@ class VectorizedTemporalRiskSimulator:
         self.intervention_effectiveness = intervention_effectiveness
         self.timestep_duration = timestep_duration
         self.prediction_window = prediction_window
+        self.intervention_duration = intervention_duration
         self.random_seed = random_seed
 
         if random_seed is not None:
@@ -152,6 +158,9 @@ class VectorizedTemporalRiskSimulator:
         # Cache for ML training data generation
         self._cached_incident_matrix: Optional[np.ndarray] = None
         self._cached_ml_params: Optional[Dict[str, float]] = None
+
+        # Track active intervention end times for re-enrollment prevention
+        self._active_intervention_end_times: Dict[int, int] = {}
 
     @log_call
     def initialize_population(
@@ -396,6 +405,264 @@ class VectorizedTemporalRiskSimulator:
 
         return labels_int
 
+    def _get_eligible_patients(self, current_time: int) -> np.ndarray:
+        """
+        Get patients eligible for intervention at current time.
+
+        Parameters
+        ----------
+        current_time : int
+            Current timestep
+
+        Returns
+        -------
+        eligible_patients : np.ndarray
+            Array of patient indices eligible for intervention
+        """
+        # Start with all patients
+        all_patients = np.arange(self.n_patients)
+
+        # Filter out patients currently under intervention
+        eligible_mask = np.ones(self.n_patients, dtype=bool)
+
+        for patient_idx, end_time in (
+                self._active_intervention_end_times.items()):
+            if current_time <= end_time:
+                eligible_mask[patient_idx] = False
+
+        return all_patients[eligible_mask]
+
+    def _optimize_for_assignment_strategy(
+        self,
+        assignment_strategy: str,
+        threshold: float,
+        treatment_fraction: Optional[float]
+    ) -> None:
+        """
+        Re-optimize ML parameters for the specific assignment strategy.
+
+        Parameters
+        ----------
+        assignment_strategy : str
+            Assignment strategy to optimize for
+        threshold : float
+            Threshold for ml_threshold strategy
+        treatment_fraction : float, optional
+            Fraction for top_k or random strategies
+        """
+        if (self.ml_simulator is None or
+                self.results.ml_prediction_times is None):
+            return
+
+        # Use the first prediction time for re-optimization
+        pred_time = self.results.ml_prediction_times[0]
+
+        if (pred_time + self.prediction_window > self.n_timesteps):
+            return  # Skip if prediction window extends beyond simulation
+
+        # Extract risk windows and generate true labels
+        risk_windows = extract_risk_windows(
+            self.results.temporal_risk_matrix,
+            start_time=pred_time,
+            window_length=self.prediction_window
+        )
+        integrated_risks = integrate_window_risk(
+            risk_windows,
+            timestep_duration=self.timestep_duration
+        )
+        true_labels = self._generate_true_labels(pred_time)
+
+        # Re-optimize with assignment strategy parameters
+        optimized_params = self.ml_simulator.optimize_noise_parameters(
+            true_labels,
+            integrated_risks,
+            n_iterations=10,  # Reduced iterations for re-optimization
+            assignment_strategy=assignment_strategy,
+            assignment_threshold=threshold,
+            assignment_fraction=treatment_fraction
+        )
+
+        # Update cached parameters
+        self._cached_ml_params = optimized_params
+
+    def validate_no_re_enrollment(self) -> bool:
+        """
+        Validate that no patient was re-enrolled during active intervention.
+
+        Returns
+        -------
+        is_valid : bool
+            True if no re-enrollment violations detected
+        """
+        if not self._interventions_assigned:
+            return True
+
+        # Check each prediction time
+        if self.results.ml_prediction_times is None:
+            return True
+
+        for i, pred_time in enumerate(self.results.ml_prediction_times):
+            if pred_time not in self.results.intervention_times:
+                continue
+
+            current_assignments = set(
+                self.results.intervention_times[pred_time]
+            )
+
+            # Check against all previous intervention assignments
+            for j, prev_time in enumerate(
+                    self.results.ml_prediction_times[:i]):
+                if prev_time not in self.results.intervention_times:
+                    continue
+
+                prev_assignments = set(
+                    self.results.intervention_times[prev_time]
+                )
+
+                # Calculate intervention end time for previous assignments
+                if self.intervention_duration == -1:
+                    prev_end_time = self.n_timesteps - 1
+                else:
+                    prev_end_time = (
+                        prev_time + self.intervention_duration - 1
+                    )
+
+                # Check if current assignment overlaps with intervention
+                if pred_time <= prev_end_time:
+                    overlap = current_assignments.intersection(
+                        prev_assignments
+                    )
+                    if overlap:
+                        return False
+
+        return True
+
+    def validate_assignment_performance(
+        self,
+        assignment_strategy: str = "ml_threshold",
+        threshold: float = 0.5,
+        treatment_fraction: Optional[float] = None,
+        tolerance: float = 0.1
+    ) -> Dict[str, Any]:
+        """
+        Validate that ML performance targets are met at assignment level.
+
+        Parameters
+        ----------
+        assignment_strategy : str, default="ml_threshold"
+            Assignment strategy to validate
+        threshold : float, default=0.5
+            Threshold for ml_threshold strategy
+        treatment_fraction : float, optional
+            Fraction for top_k or random strategies
+        tolerance : float, default=0.1
+            Acceptable deviation from targets
+
+        Returns
+        -------
+        validation_results : dict
+            Validation results with performance metrics and pass/fail status
+        """
+        if (not self._ml_predictions_generated or
+                self.results.ml_prediction_times is None):
+            return {"error": "ML predictions not generated"}
+
+        results = {}
+
+        for pred_time in self.results.ml_prediction_times:
+            if pred_time not in self.results.ml_predictions:
+                continue
+
+            predictions = self.results.ml_predictions[pred_time]
+
+            # Generate true labels for this prediction time
+            true_labels = self._generate_true_labels(pred_time)
+
+            # Apply assignment strategy to get binary predictions
+            if assignment_strategy == "ml_threshold":
+                binary_preds = (predictions >= threshold).astype(int)
+            elif assignment_strategy == "top_k":
+                if treatment_fraction is None:
+                    treatment_fraction = 0.2
+                k = int(len(predictions) * treatment_fraction)
+                if k > 0:
+                    top_indices = np.argsort(predictions)[-k:]
+                    binary_preds = np.zeros_like(predictions, dtype=int)
+                    binary_preds[top_indices] = 1
+                else:
+                    binary_preds = np.zeros_like(predictions, dtype=int)
+            elif assignment_strategy == "random":
+                # Random strategy doesn't use ML predictions
+                continue
+            else:
+                continue
+
+            # Calculate metrics
+            tn, fp, fn, tp = confusion_matrix(
+                true_labels, binary_preds
+            ).ravel()
+
+            if tp + fn > 0:
+                sensitivity = tp / (tp + fn)
+            else:
+                sensitivity = 0.0
+
+            if tp + fp > 0:
+                ppv = tp / (tp + fp)
+            else:
+                ppv = 0.0
+
+            # Check if within tolerance
+            sens_target = (
+                self.ml_simulator.target_sensitivity
+                if self.ml_simulator else 0.8
+            )
+            ppv_target = (
+                self.ml_simulator.target_ppv
+                if self.ml_simulator else 0.3
+            )
+
+            sens_meets_target = abs(sensitivity - sens_target) <= tolerance
+            ppv_meets_target = abs(ppv - ppv_target) <= tolerance
+
+            results[f"time_{pred_time}"] = {
+                "sensitivity": sensitivity,
+                "ppv": ppv,
+                "sensitivity_target": sens_target,
+                "ppv_target": ppv_target,
+                "sensitivity_meets_target": sens_meets_target,
+                "ppv_meets_target": ppv_meets_target,
+                "overall_pass": sens_meets_target and ppv_meets_target,
+                "tp": int(tp),
+                "fp": int(fp),
+                "tn": int(tn),
+                "fn": int(fn)
+            }
+
+        # Overall validation summary
+        if results:
+            all_pass = all(
+                result["overall_pass"] for result in results.values()
+                if isinstance(result, dict)
+            )
+            avg_sensitivity = np.mean([
+                result["sensitivity"] for result in results.values()
+                if isinstance(result, dict)
+            ])
+            avg_ppv = np.mean([
+                result["ppv"] for result in results.values()
+                if isinstance(result, dict)
+            ])
+
+            results["summary"] = {
+                "all_times_pass": all_pass,
+                "avg_sensitivity": avg_sensitivity,
+                "avg_ppv": avg_ppv,
+                "strategy": assignment_strategy
+            }
+
+        return results
+
     @log_call
     def assign_interventions(
         self,
@@ -421,6 +688,11 @@ class VectorizedTemporalRiskSimulator:
         if not self._ml_predictions_generated:
             raise ValueError("ML predictions must be generated first")
 
+        # Re-optimize ML parameters for the specific assignment strategy
+        self._optimize_for_assignment_strategy(
+            assignment_strategy, threshold, treatment_fraction
+        )
+
         # Initialize intervention tracking
         intervention_data = []
         # Initialize intervention times
@@ -440,37 +712,76 @@ class VectorizedTemporalRiskSimulator:
 
             ml_scores = self.results.ml_predictions[pred_time]
 
-            # Determine intervention assignment
+            # Get eligible patients (not currently under intervention)
+            eligible_patients = self._get_eligible_patients(pred_time)
+
+            # Filter ML scores to only eligible patients
+            eligible_scores = ml_scores[eligible_patients]
+
+            # Determine intervention assignment for eligible patients only
             if assignment_strategy == "ml_threshold":
-                treated_patients = ml_scores >= threshold
+                eligible_treated = eligible_scores >= threshold
+                treated_eligible_indices = np.where(eligible_treated)[0]
+                treated_patient_indices = (
+                    eligible_patients[treated_eligible_indices]
+                )
             elif assignment_strategy == "random":
                 if treatment_fraction is None:
                     treatment_fraction = 0.5
-                n_treated = int(self.n_patients * treatment_fraction)
-                treated_indices = np.random.choice(
-                    self.n_patients, n_treated, replace=False
-                )
-                treated_patients = np.zeros(self.n_patients, dtype=bool)
-                treated_patients[treated_indices] = True
+                n_eligible = len(eligible_patients)
+                n_treated = int(n_eligible * treatment_fraction)
+                if n_treated > 0:
+                    treated_eligible_indices = np.random.choice(
+                        n_eligible, n_treated, replace=False
+                    )
+                    treated_patient_indices = (
+                        eligible_patients[treated_eligible_indices]
+                    )
+                else:
+                    treated_patient_indices = np.array([], dtype=int)
             elif assignment_strategy == "top_k":
                 if treatment_fraction is None:
                     treatment_fraction = 0.2
-                n_treated = int(self.n_patients * treatment_fraction)
-                top_indices = np.argsort(ml_scores)[-n_treated:]
-                treated_patients = np.zeros(self.n_patients, dtype=bool)
-                treated_patients[top_indices] = True
+                n_eligible = len(eligible_patients)
+                n_treated = int(n_eligible * treatment_fraction)
+                if n_treated > 0:
+                    top_eligible_indices = (
+                        np.argsort(eligible_scores)[-n_treated:]
+                    )
+                    treated_patient_indices = (
+                        eligible_patients[top_eligible_indices]
+                    )
+                else:
+                    treated_patient_indices = np.array([], dtype=int)
             else:
                 raise ValueError(
                     f"Unknown assignment strategy: {assignment_strategy}"
                 )
 
-            # Store intervention assignments
-            treated_indices = np.where(treated_patients)[0]
-            intervention_times[pred_time] = treated_indices.tolist()
+            # Calculate intervention end time
+            if self.intervention_duration == -1:
+                # Full simulation duration
+                intervention_end_time = self.n_timesteps - 1
+            else:
+                intervention_end_time = (
+                    pred_time + self.intervention_duration - 1
+                )
 
-            # Add to sparse matrix data
-            for patient_idx in treated_indices:
-                intervention_data.append((patient_idx, pred_time, 1))
+            # Update active intervention tracking
+            for patient_idx in treated_patient_indices:
+                self._active_intervention_end_times[patient_idx] = (
+                    intervention_end_time
+                )
+
+            # Store intervention assignments
+            intervention_times[pred_time] = treated_patient_indices.tolist()
+
+            # Add to sparse matrix data for entire intervention duration
+            for patient_idx in treated_patient_indices:
+                for t in range(
+                    pred_time, min(intervention_end_time + 1,
+                                   self.n_timesteps)):
+                    intervention_data.append((patient_idx, t, 1))
 
         # Create sparse intervention matrix
         if intervention_data:

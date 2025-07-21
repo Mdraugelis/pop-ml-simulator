@@ -306,13 +306,17 @@ class MLPredictionSimulator:
         self,
         true_labels: np.ndarray,
         risk_scores: np.ndarray,
-        n_iterations: int = 20
+        n_iterations: int = 20,
+        assignment_strategy: str = "ml_threshold",
+        assignment_threshold: float = 0.5,
+        assignment_fraction: Optional[float] = None
     ) -> Dict[str, float]:
         """
         Optimize noise parameters to achieve target performance.
 
         Uses grid search to find noise_correlation and noise_scale
-        that best achieve target sensitivity and PPV.
+        that best achieve target sensitivity and PPV using the specified
+        assignment strategy.
 
         Parameters
         ----------
@@ -322,12 +326,22 @@ class MLPredictionSimulator:
             True underlying risk scores
         n_iterations : int, default=20
             Number of random seeds to average over
+        assignment_strategy : str, default="ml_threshold"
+            Assignment strategy: "ml_threshold", "random", "top_k"
+        assignment_threshold : float, default=0.5
+            Threshold for ml_threshold strategy
+        assignment_fraction : float, optional
+            Fraction for top_k or random strategies
 
         Returns
         -------
-        best_params : dic
+        best_params : dict
             Optimized parameters with keys 'correlation' and 'scale'
         """
+        # Skip optimization for random strategy (not applicable)
+        if assignment_strategy == "random":
+            return {'correlation': 0.7, 'scale': 0.3}
+
         correlations = np.linspace(0.5, 0.95, 10)
         scales = np.linspace(0.1, 0.5, 10)
 
@@ -341,13 +355,43 @@ class MLPredictionSimulator:
 
                 for seed in range(n_iterations):
                     self.random_seed = seed
-                    _, binary = self.generate_predictions(
+                    predictions, _ = self.generate_predictions(
                         true_labels, risk_scores, corr, scale
                     )
 
+                    # Calculate metrics based on assignment strategy
+                    if assignment_strategy == "ml_threshold":
+                        # Use the specified threshold
+                        binary_preds = (
+                            predictions >= assignment_threshold
+                        ).astype(int)
+                    elif assignment_strategy == "top_k":
+                        # Use top-k selection
+                        if assignment_fraction is None:
+                            assignment_fraction = 0.2
+                        k = int(len(predictions) * assignment_fraction)
+                        if k > 0:
+                            top_indices = np.argsort(predictions)[-k:]
+                            binary_preds = np.zeros_like(
+                                predictions, dtype=int
+                            )
+                            binary_preds[top_indices] = 1
+                        else:
+                            binary_preds = np.zeros_like(
+                                predictions, dtype=int
+                            )
+                    else:
+                        # Fallback to optimal threshold
+                        threshold = self._find_optimal_threshold(
+                            true_labels, predictions
+                        )
+                        binary_preds = (
+                            predictions >= threshold
+                        ).astype(int)
+
                     # Calculate metrics
                     tn, fp, fn, tp = confusion_matrix(
-                        true_labels, binary
+                        true_labels, binary_preds
                     ).ravel()
 
                     if tp > 0:

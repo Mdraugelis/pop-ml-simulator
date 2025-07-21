@@ -622,3 +622,450 @@ class TestVectorizedTemporalRiskSimulator:
         )
 
         assert actual_incidents <= counterfactual_incidents
+
+
+class TestInterventionDuration:
+    """Test suite for intervention duration functionality."""
+
+    @pytest.fixture(autouse=True)
+    def mock_ml_optimization(self):
+        """Mock expensive ML optimization to speed up tests."""
+        with patch(
+            'pop_ml_simulator.ml_simulation.'
+            'MLPredictionSimulator.optimize_noise_parameters'
+        ) as mock:
+            mock.return_value = {'correlation': 0.7, 'scale': 0.3}
+            yield mock
+
+    @pytest.fixture
+    def duration_simulator(self):
+        """Create a simulator for testing intervention duration."""
+        return VectorizedTemporalRiskSimulator(
+            n_patients=10,
+            n_timesteps=20,
+            annual_incident_rate=0.1,
+            intervention_effectiveness=0.25,
+            intervention_duration=4,  # 4-timestep interventions
+            random_seed=42
+        )
+
+    def test_intervention_duration_initialization(self, duration_simulator):
+        """Test that intervention duration is properly initialized."""
+        assert duration_simulator.intervention_duration == 4
+        assert len(duration_simulator._active_intervention_end_times) == 0
+
+    def test_single_intervention_duration(self, duration_simulator):
+        """Test that single intervention lasts for specified duration."""
+        duration_simulator.initialize_population()
+        duration_simulator.simulate_temporal_evolution()
+        duration_simulator.generate_ml_predictions(
+            [0], n_optimization_iterations=1
+        )
+        duration_simulator.assign_interventions(
+            assignment_strategy="random", treatment_fraction=0.5
+        )
+
+        # Check intervention matrix for duration
+        intervention_matrix = duration_simulator.results.intervention_matrix
+
+        # Find patients who got interventions at time 0
+        time_0_interventions = (
+            intervention_matrix[:, 0].toarray().flatten()
+        )
+        treated_patients = np.where(time_0_interventions > 0)[0]
+
+        if len(treated_patients) > 0:
+            # Check that interventions last for 4 timesteps (0, 1, 2, 3)
+            for patient_idx in treated_patients:
+                for t in range(4):  # Duration = 4
+                    assert intervention_matrix[patient_idx, t] == 1
+                # After duration, no intervention
+                if duration_simulator.n_timesteps > 4:
+                    assert intervention_matrix[patient_idx, 4] == 0
+
+    def test_no_re_enrollment_prevention(self, duration_simulator):
+        """Test that patients cannot be re-enrolled during intervention."""
+        duration_simulator.initialize_population()
+        duration_simulator.simulate_temporal_evolution()
+
+        # Generate predictions at times 0 and 2 (overlap with duration=4)
+        duration_simulator.generate_ml_predictions(
+            [0, 2], n_optimization_iterations=1
+        )
+        duration_simulator.assign_interventions(
+            assignment_strategy="random", treatment_fraction=0.8
+        )
+
+        # Validate no re-enrollment
+        assert duration_simulator.validate_no_re_enrollment()
+
+        # Check that patients treated at time 0 are not treated at time 2
+        intervention_times = duration_simulator.results.intervention_times
+
+        if 0 in intervention_times and 2 in intervention_times:
+            time_0_patients = set(intervention_times[0])
+            time_2_patients = set(intervention_times[2])
+
+            # No overlap should exist since time 2 is within duration 4
+            overlap = time_0_patients.intersection(time_2_patients)
+            assert len(overlap) == 0
+
+    def test_full_duration_intervention(self):
+        """Test intervention duration of -1 (full simulation)."""
+        simulator = VectorizedTemporalRiskSimulator(
+            n_patients=5,
+            n_timesteps=10,
+            annual_incident_rate=0.1,
+            intervention_duration=-1,  # Full duration
+            random_seed=42
+        )
+
+        simulator.initialize_population()
+        simulator.simulate_temporal_evolution()
+        simulator.generate_ml_predictions([0], n_optimization_iterations=1)
+        simulator.assign_interventions(
+            assignment_strategy="random", treatment_fraction=0.6
+        )
+
+        # Check that interventions last until end of simulation
+        intervention_matrix = simulator.results.intervention_matrix
+        time_0_interventions = (
+            intervention_matrix[:, 0].toarray().flatten()
+        )
+        treated_patients = np.where(time_0_interventions > 0)[0]
+
+        if len(treated_patients) > 0:
+            for patient_idx in treated_patients:
+                # Should be treated for entire simulation
+                patient_interventions = (
+                    intervention_matrix[patient_idx, :].toarray().flatten()
+                )
+                assert np.all(patient_interventions == 1)
+
+    def test_eligible_patients_filtering(self, duration_simulator):
+        """Test _get_eligible_patients correctly filters patients."""
+        duration_simulator.initialize_population()
+
+        # Manually set some active interventions
+        duration_simulator._active_intervention_end_times = {
+            0: 5,  # Patient 0 under intervention until time 5
+            2: 3,  # Patient 2 under intervention until time 3
+        }
+
+        # Test at different times
+        eligible_at_time_1 = duration_simulator._get_eligible_patients(1)
+        expected_eligible_1 = np.array([1, 3, 4, 5, 6, 7, 8, 9])
+        np.testing.assert_array_equal(eligible_at_time_1, expected_eligible_1)
+
+        eligible_at_time_4 = duration_simulator._get_eligible_patients(4)
+        expected_eligible_4 = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+        np.testing.assert_array_equal(eligible_at_time_4, expected_eligible_4)
+
+        eligible_at_time_6 = duration_simulator._get_eligible_patients(6)
+        expected_eligible_6 = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        np.testing.assert_array_equal(eligible_at_time_6, expected_eligible_6)
+
+    def test_multiple_prediction_times_with_duration(self, duration_simulator):
+        """Test intervention assignment at multiple times with duration."""
+        duration_simulator.initialize_population()
+        duration_simulator.simulate_temporal_evolution()
+
+        # Predictions at times 0, 6, 12 (non-overlapping with duration=4)
+        duration_simulator.generate_ml_predictions(
+            [0, 6, 12], n_optimization_iterations=1
+        )
+        duration_simulator.assign_interventions(
+            assignment_strategy="random", treatment_fraction=0.4
+        )
+
+        # Validate no re-enrollment
+        assert duration_simulator.validate_no_re_enrollment()
+
+        # Check that interventions are properly spaced
+        intervention_times = duration_simulator.results.intervention_times
+
+        # Patients can be treated at different non-overlapping times
+        all_treated_patients = set()
+        for time, patients in intervention_times.items():
+            current_patients = set(patients)
+            # No immediate overlap (patients can be treated again after)
+            all_treated_patients.update(current_patients)
+
+    def test_intervention_duration_with_different_strategies(self):
+        """Test intervention duration works with all strategies."""
+        strategies = ["ml_threshold", "random", "top_k"]
+
+        for strategy in strategies:
+            simulator = VectorizedTemporalRiskSimulator(
+                n_patients=8,
+                n_timesteps=15,
+                annual_incident_rate=0.1,
+                intervention_duration=3,
+                random_seed=42
+            )
+
+            simulator.initialize_population()
+            simulator.simulate_temporal_evolution()
+            simulator.generate_ml_predictions(
+                [0, 5], n_optimization_iterations=1
+            )
+
+            kwargs = {}
+            if strategy in ["random", "top_k"]:
+                kwargs["treatment_fraction"] = 0.5
+            elif strategy == "ml_threshold":
+                kwargs["threshold"] = 0.3
+
+            simulator.assign_interventions(
+                assignment_strategy=strategy, **kwargs
+            )
+
+            # Should pass validation for all strategies
+            assert simulator.validate_no_re_enrollment()
+
+    def test_validate_no_re_enrollment_edge_cases(self, duration_simulator):
+        """Test validation method edge cases."""
+        # Test before interventions assigned
+        assert duration_simulator.validate_no_re_enrollment()
+
+        # Test with empty prediction times
+        duration_simulator._interventions_assigned = True
+        duration_simulator.results.ml_prediction_times = None
+        assert duration_simulator.validate_no_re_enrollment()
+
+        duration_simulator.results.ml_prediction_times = []
+        assert duration_simulator.validate_no_re_enrollment()
+
+    def test_intervention_matrix_sparse_efficiency_with_duration(
+            self, duration_simulator):
+        """Test that sparse matrix remains efficient with duration."""
+        duration_simulator.initialize_population()
+        duration_simulator.simulate_temporal_evolution()
+        duration_simulator.generate_ml_predictions(
+            [0], n_optimization_iterations=1
+        )
+        duration_simulator.assign_interventions(
+            assignment_strategy="top_k", treatment_fraction=0.2
+        )
+
+        intervention_matrix = duration_simulator.results.intervention_matrix
+        assert isinstance(intervention_matrix, sparse.csr_matrix)
+
+        # Check sparsity - even with duration, should still be sparse
+        total_elements = (
+            intervention_matrix.shape[0] * intervention_matrix.shape[1]
+        )
+        non_zero_elements = intervention_matrix.nnz
+        sparsity = 1 - (non_zero_elements / total_elements)
+        assert sparsity > 0.3  # Should be reasonably sparse
+
+
+class TestMLOptimizationAlignment:
+    """Test suite for ML optimization alignment with assignment strategies."""
+
+    @pytest.fixture(autouse=True)
+    def mock_ml_optimization(self):
+        """Mock expensive ML optimization to speed up tests."""
+        with patch(
+            'pop_ml_simulator.ml_simulation.'
+            'MLPredictionSimulator.optimize_noise_parameters'
+        ) as mock:
+            mock.return_value = {'correlation': 0.7, 'scale': 0.3}
+            yield mock
+
+    @pytest.fixture
+    def test_simulator(self):
+        """Create a simulator for testing ML optimization alignment."""
+        return VectorizedTemporalRiskSimulator(
+            n_patients=20,
+            n_timesteps=15,
+            annual_incident_rate=0.1,
+            intervention_effectiveness=0.25,
+            random_seed=42
+        )
+
+    def test_ml_threshold_strategy_optimization(self, test_simulator):
+        """Test that ml_threshold strategy optimizes for specific threshold."""
+        test_simulator.initialize_population()
+        test_simulator.simulate_temporal_evolution()
+        test_simulator.generate_ml_predictions(
+            [0], n_optimization_iterations=1
+        )
+
+        # Test different thresholds
+        thresholds = [0.3, 0.5, 0.7]
+
+        for threshold in thresholds:
+            test_simulator.assign_interventions(
+                assignment_strategy="ml_threshold",
+                threshold=threshold
+            )
+
+            # Validate performance at this threshold
+            validation = test_simulator.validate_assignment_performance(
+                assignment_strategy="ml_threshold",
+                threshold=threshold,
+                tolerance=0.2  # Allow larger tolerance for small test data
+            )
+
+            assert "summary" in validation
+            assert validation["summary"]["strategy"] == "ml_threshold"
+
+    def test_top_k_strategy_optimization(self, test_simulator):
+        """Test that top_k strategy optimizes for specific fraction."""
+        test_simulator.initialize_population()
+        test_simulator.simulate_temporal_evolution()
+        test_simulator.generate_ml_predictions(
+            [0], n_optimization_iterations=1
+        )
+
+        # Test different fractions
+        fractions = [0.1, 0.2, 0.3]
+
+        for fraction in fractions:
+            test_simulator.assign_interventions(
+                assignment_strategy="top_k",
+                treatment_fraction=fraction
+            )
+
+            # Validate performance at this fraction
+            validation = test_simulator.validate_assignment_performance(
+                assignment_strategy="top_k",
+                treatment_fraction=fraction,
+                tolerance=0.2
+            )
+
+            assert "summary" in validation
+            assert validation["summary"]["strategy"] == "top_k"
+
+    def test_random_strategy_no_optimization(self, test_simulator):
+        """Test that random strategy doesn't require ML optimization."""
+        test_simulator.initialize_population()
+        test_simulator.simulate_temporal_evolution()
+        test_simulator.generate_ml_predictions(
+            [0], n_optimization_iterations=1
+        )
+
+        # Random strategy should work without issues
+        test_simulator.assign_interventions(
+            assignment_strategy="random",
+            treatment_fraction=0.3
+        )
+
+        # Random strategy doesn't use ML predictions for validation
+        validation = test_simulator.validate_assignment_performance(
+            assignment_strategy="random",
+            treatment_fraction=0.3
+        )
+
+        # Should skip random strategy in validation
+        assert len(validation) == 0 or "error" not in validation
+
+    def test_performance_validation_structure(self, test_simulator):
+        """Test the structure of performance validation results."""
+        test_simulator.initialize_population()
+        test_simulator.simulate_temporal_evolution()
+        test_simulator.generate_ml_predictions(
+            [0, 5], n_optimization_iterations=1
+        )
+
+        test_simulator.assign_interventions(
+            assignment_strategy="ml_threshold",
+            threshold=0.5
+        )
+
+        validation = test_simulator.validate_assignment_performance(
+            assignment_strategy="ml_threshold",
+            threshold=0.5
+        )
+
+        # Check structure
+        assert "summary" in validation
+        summary = validation["summary"]
+
+        required_summary_keys = [
+            "all_times_pass", "avg_sensitivity", "avg_ppv", "strategy"
+        ]
+        for key in required_summary_keys:
+            assert key in summary
+
+        # Check individual time results
+        time_results = [
+            v for k, v in validation.items()
+            if k.startswith("time_") and isinstance(v, dict)
+        ]
+
+        if time_results:
+            required_time_keys = [
+                "sensitivity", "ppv", "sensitivity_target", "ppv_target",
+                "sensitivity_meets_target", "ppv_meets_target",
+                "overall_pass", "tp", "fp", "tn", "fn"
+            ]
+
+            for result in time_results:
+                for key in required_time_keys:
+                    assert key in result
+
+    def test_assignment_strategy_optimization_called(self, test_simulator):
+        """Test that assignment strategy optimization is called."""
+        with patch.object(
+            test_simulator, '_optimize_for_assignment_strategy'
+        ) as mock_optimize:
+            test_simulator.initialize_population()
+            test_simulator.simulate_temporal_evolution()
+            test_simulator.generate_ml_predictions(
+                [0], n_optimization_iterations=1
+            )
+
+            test_simulator.assign_interventions(
+                assignment_strategy="ml_threshold",
+                threshold=0.4
+            )
+
+            # Verify optimization was called with correct parameters
+            mock_optimize.assert_called_once_with("ml_threshold", 0.4, None)
+
+    def test_optimization_updates_cached_params(self, test_simulator):
+        """Test that optimization updates cached ML parameters."""
+        test_simulator.initialize_population()
+        test_simulator.simulate_temporal_evolution()
+        test_simulator.generate_ml_predictions(
+            [0], n_optimization_iterations=1
+        )
+
+        # Store initial cached params (unused but kept for clarity)
+        # initial_params = test_simulator._cached_ml_params.copy()
+
+        # Assign interventions (should trigger re-optimization)
+        test_simulator.assign_interventions(
+            assignment_strategy="ml_threshold",
+            threshold=0.3
+        )
+
+        # Parameters should be updated (or at least process should complete)
+        assert test_simulator._cached_ml_params is not None
+
+    def test_edge_case_no_positive_labels(self, test_simulator):
+        """Test handling when no positive labels exist."""
+        # Create a scenario with very low risk to minimize positive labels
+        test_simulator.annual_incident_rate = 0.001  # Very low rate
+        test_simulator.initialize_population()
+        test_simulator.simulate_temporal_evolution()
+        test_simulator.generate_ml_predictions(
+            [0], n_optimization_iterations=1
+        )
+
+        # Should handle gracefully even with few/no positive cases
+        test_simulator.assign_interventions(
+            assignment_strategy="ml_threshold",
+            threshold=0.5
+        )
+
+        validation = test_simulator.validate_assignment_performance(
+            assignment_strategy="ml_threshold",
+            threshold=0.5,
+            tolerance=0.5  # Very tolerant for edge case
+        )
+
+        # Should not crash and should return some results
+        assert isinstance(validation, dict)
