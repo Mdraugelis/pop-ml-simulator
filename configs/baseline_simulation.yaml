@@ -34,8 +34,8 @@ temporal_dynamics:
   
 # ML model parameters
 ml_model:
-  target_sensitivity: 1.00     # Target recall/sensitivity
-  target_ppv: 1.00            # Target precision/PPV
+  target_sensitivity: 0.40     # Target recall/sensitivity
+  target_ppv: 0.15            # Target precision/PPV
   n_optimization_iterations: 20  # Optimization iterations for noise parameters
   calibration: "sigmoid"       # Calibration method
   
@@ -46,10 +46,11 @@ prediction_schedule:
 # Intervention strategy
 intervention:
   effectiveness: 0.50          # 25% relative risk reduction
-  assignment_strategy: "ml_threshold" # Assignment method
+  assignment_strategy: "ml_threshold" # Assignment method: "ml_threshold", "random", "top_k"
   threshold: 0.5               # ML score threshold for intervention
   treatment_fraction: 0.005     # Only used for random/top_k strategies
-  
+  duration: -1                 # Intervention duration in timesteps ( -1 for remaining weeks)
+
 # Simulation options
 simulation:
   generate_counterfactuals: true
