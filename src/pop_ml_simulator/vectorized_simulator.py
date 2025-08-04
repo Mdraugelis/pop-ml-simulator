@@ -238,7 +238,7 @@ class VectorizedTemporalRiskSimulator:
     ) -> None:
         """
         Generate ML predictions at specified time points.
-        
+
         Initial predictions use default noise parameters. Optimization
         happens later during intervention assignment when the assignment
         strategy is known.
@@ -482,20 +482,21 @@ class VectorizedTemporalRiskSimulator:
 
         # Update cached parameters
         self._cached_ml_params = optimized_params
-        
+
         # Update ML simulator with optimized parameters
         self.ml_simulator.noise_correlation = optimized_params['correlation']
         self.ml_simulator.noise_scale = optimized_params['scale']
-        
+
         logging.debug(
-            f"ML optimization complete: correlation={optimized_params['correlation']:.3f}, "
+            f"ML optimization complete: "
+            f"correlation={optimized_params['correlation']:.3f}, "
             f"scale={optimized_params['scale']:.3f}"
         )
 
     def _regenerate_predictions_after_optimization(self) -> None:
         """
         Regenerate ML predictions using optimized parameters.
-        Called after optimization to ensure predictions match the optimized model.
+        Called after optimization to ensure predictions match optimized model.
         """
         if (self.ml_simulator is None or
                 self.results.ml_prediction_times is None or
@@ -534,8 +535,8 @@ class VectorizedTemporalRiskSimulator:
             ml_scores, ml_binary = self.ml_simulator.generate_predictions(
                 true_labels,
                 integrated_risks,
-                noise_correlation=self.ml_simulator.noise_correlation,
-                noise_scale=self.ml_simulator.noise_scale
+                noise_correlation=self.ml_simulator.noise_correlation or 0.7,
+                noise_scale=self.ml_simulator.noise_scale or 0.3
             )
 
             # Store results
@@ -753,7 +754,7 @@ class VectorizedTemporalRiskSimulator:
             assignment_strategy, threshold, treatment_fraction,
             n_iterations=n_optimization_iterations
         )
-        
+
         # Regenerate predictions with optimized parameters for consistency
         if assignment_strategy != "random":
             self._regenerate_predictions_after_optimization()
