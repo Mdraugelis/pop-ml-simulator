@@ -285,6 +285,40 @@ def test_reproducibility():
         return True
 
 
+def test_ml_prediction_optimization():
+    """Test that ML predictions are updated after optimization."""
+    print("\n=== ML Prediction Optimization Test ===")
+
+    with mock_ml_optimization():
+        simulator = VectorizedTemporalRiskSimulator(
+            n_patients=10,
+            n_timesteps=8,
+            annual_incident_rate=0.1,
+            prediction_window=4,
+            random_seed=42
+        )
+
+        simulator.initialize_population()
+        simulator.simulate_temporal_evolution()
+        simulator.generate_ml_predictions(prediction_times=[0])
+
+        initial_predictions = simulator.results.ml_predictions[0].copy()
+
+        simulator.assign_interventions(
+            assignment_strategy="ml_threshold",
+            threshold=0.5,
+            n_optimization_iterations=1
+        )
+
+        optimized_predictions = simulator.results.ml_predictions[0]
+
+        assert not np.array_equal(initial_predictions, optimized_predictions), \
+            "ML predictions were not updated after optimization"
+
+        print("✓ ML prediction optimization test passed!")
+        return True
+
+
 def run_performance_benchmark():
     """Run a simple performance benchmark."""
     print("\n=== Performance Benchmark ===")
@@ -316,6 +350,34 @@ def run_performance_benchmark():
         return True
 
 
+def test_no_re_enrollment_validation():
+    """Test the no re-enrollment validation."""
+    print("\n=== No Re-enrollment Validation Test ===")
+
+    with mock_ml_optimization():
+        simulator = VectorizedTemporalRiskSimulator(
+            n_patients=10,
+            n_timesteps=8,
+            annual_incident_rate=0.1,
+            prediction_window=4,
+            intervention_duration=2,
+            random_seed=42
+        )
+        simulator.run_full_simulation(prediction_times=[0, 1, 2])
+
+        # Should be valid initially
+        assert simulator.validate_no_re_enrollment(), "Validation failed unexpectedly"
+        print("✓ Initial validation passed")
+
+        # Manually create a re-enrollment
+        simulator.results.intervention_times[1] = simulator.results.intervention_times[0]
+
+        assert not simulator.validate_no_re_enrollment(), "Validation passed unexpectedly"
+        print("✓ Validation correctly failed with re-enrollment")
+
+        return True
+
+
 def main():
     """Run all tests."""
     print("VectorizedTemporalRiskSimulator - Quick Verification Tests")
@@ -329,6 +391,8 @@ def main():
         test_patient_trajectory,
         test_different_assignment_strategies,
         test_reproducibility,
+        test_ml_prediction_optimization,
+        test_no_re_enrollment_validation,
         run_performance_benchmark
     ]
     

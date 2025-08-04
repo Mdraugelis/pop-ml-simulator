@@ -622,6 +622,14 @@ def run_validation_checks(results: SimulationResults, cfg: DictConfig) -> Dict[s
             logging.warning(f"✗ Intervention coverage validation failed: {coverage:.3f} "
                            f"(range: {coverage_range})")
     
+    # Check for no re-enrollment
+    if cfg.validation.validate_no_re_enrollment:
+        validation_results['no_re_enrollment'] = simulator.validate_no_re_enrollment()
+        if validation_results['no_re_enrollment']:
+            logging.info("✓ No re-enrollment validation passed")
+        else:
+            logging.warning("✗ No re-enrollment validation failed")
+
     # Summary
     passed = sum(validation_results.values())
     total = len(validation_results)

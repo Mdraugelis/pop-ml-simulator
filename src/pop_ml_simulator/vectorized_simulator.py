@@ -22,7 +22,7 @@ from .hazard_modeling import (
 )
 from .ml_simulation import MLPredictionSimulator
 from .risk_integration import integrate_window_risk, extract_risk_windows
-from utils.logging import log_call
+from .utils.logging import log_call
 
 
 @dataclass
@@ -157,7 +157,6 @@ class VectorizedTemporalRiskSimulator:
         self._incidents_simulated = False
         # Cache for ML training data generation
         self._cached_incident_matrix: Optional[np.ndarray] = None
-        self._cached_ml_params: Optional[Dict[str, float]] = None
 
         # Track active intervention end times for re-enrollment prevention
         self._active_intervention_end_times: Dict[int, int] = {}
@@ -267,25 +266,9 @@ class VectorizedTemporalRiskSimulator:
 
         # Use default parameters for initial predictions
         # Optimization will happen later when assignment strategy is known
-        if self._cached_ml_params is None:
-            # Set default noise parameters
-            self._cached_ml_params = {
-                'correlation': 0.7,
-                'scale': 0.3
-            }
-            import logging
-            logging.debug(
-                "Using default ML parameters for initial predictions. "
-                "Optimization will occur during intervention assignment."
-            )
-
-        # Set parameters from cache
-        self.ml_simulator.noise_correlation = (
-            self._cached_ml_params['correlation']
-        )
-        self.ml_simulator.noise_scale = (
-            self._cached_ml_params['scale']
-        )
+        if self.ml_simulator is not None:
+            self.ml_simulator.noise_correlation = 0.7
+            self.ml_simulator.noise_scale = 0.3
 
         # Generate predictions at each time point
         for pred_time in prediction_times:
@@ -480,12 +463,10 @@ class VectorizedTemporalRiskSimulator:
             assignment_fraction=treatment_fraction
         )
 
-        # Update cached parameters
-        self._cached_ml_params = optimized_params
-
         # Update ML simulator with optimized parameters
-        self.ml_simulator.noise_correlation = optimized_params['correlation']
-        self.ml_simulator.noise_scale = optimized_params['scale']
+        if self.ml_simulator is not None:
+            self.ml_simulator.noise_correlation = optimized_params['correlation']
+            self.ml_simulator.noise_scale = optimized_params['scale']
 
         logging.debug(
             f"ML optimization complete: "
@@ -499,8 +480,7 @@ class VectorizedTemporalRiskSimulator:
         Called after optimization to ensure predictions match optimized model.
         """
         if (self.ml_simulator is None or
-                self.results.ml_prediction_times is None or
-                self._cached_ml_params is None):
+                self.results.ml_prediction_times is None):
             return
 
         import logging
@@ -756,8 +736,7 @@ class VectorizedTemporalRiskSimulator:
         )
 
         # Regenerate predictions with optimized parameters for consistency
-        if assignment_strategy != "random":
-            self._regenerate_predictions_after_optimization()
+        self._regenerate_predictions_after_optimization()
 
         # Initialize intervention tracking
         intervention_data = []

@@ -94,6 +94,7 @@ validation:
   validate_population_mean: true
   validate_temporal_autocorrelation: true
   validate_intervention_coverage: true
+  validate_no_re_enrollment: true
   
   # Validation tolerances
   population_mean_tolerance: 0.05
