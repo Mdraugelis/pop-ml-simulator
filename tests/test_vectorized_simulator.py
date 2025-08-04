@@ -123,8 +123,7 @@ class TestVectorizedTemporalRiskSimulator:
         small_simulator.generate_ml_predictions(
             prediction_times,
             target_sensitivity=0.8,
-            target_ppv=0.3,
-            n_optimization_iterations=1  # Reduced for testing
+            target_ppv=0.3
         )
 
         assert small_simulator._ml_predictions_generated
@@ -160,8 +159,7 @@ class TestVectorizedTemporalRiskSimulator:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             small_simulator.generate_ml_predictions(
-                [10],  # prediction_window=12, timesteps=12, so 10+12 > 12
-                n_optimization_iterations=1
+                [10]  # prediction_window=12, timesteps=12, so 10+12 > 12
             )
             assert len(w) == 1
             assert "extends beyond simulation horizon" in str(w[0].message)
@@ -171,8 +169,7 @@ class TestVectorizedTemporalRiskSimulator:
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
         small_simulator.generate_ml_predictions(
-            [0], n_optimization_iterations=1
-        )
+            [0])
 
         small_simulator.assign_interventions(
             assignment_strategy="ml_threshold",
@@ -194,8 +191,7 @@ class TestVectorizedTemporalRiskSimulator:
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
         small_simulator.generate_ml_predictions(
-            [0], n_optimization_iterations=1
-        )
+            [0])
 
         small_simulator.assign_interventions(
             assignment_strategy="random",
@@ -212,8 +208,7 @@ class TestVectorizedTemporalRiskSimulator:
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
         small_simulator.generate_ml_predictions(
-            [0], n_optimization_iterations=1
-        )
+            [0])
 
         small_simulator.assign_interventions(
             assignment_strategy="top_k",
@@ -230,8 +225,7 @@ class TestVectorizedTemporalRiskSimulator:
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
         small_simulator.generate_ml_predictions(
-            [0], n_optimization_iterations=1
-        )
+            [0])
 
         with pytest.raises(ValueError, match="Unknown assignment strategy"):
             small_simulator.assign_interventions(assignment_strategy="unknown")
@@ -251,8 +245,7 @@ class TestVectorizedTemporalRiskSimulator:
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
         small_simulator.generate_ml_predictions(
-            [0], n_optimization_iterations=1
-        )
+            [0])
         small_simulator.assign_interventions()
 
         small_simulator.simulate_incidents(generate_counterfactuals=True)
@@ -292,8 +285,7 @@ class TestVectorizedTemporalRiskSimulator:
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
         small_simulator.generate_ml_predictions(
-            [0], n_optimization_iterations=1
-        )
+            [0])
         small_simulator.assign_interventions()
 
         small_simulator.simulate_incidents(generate_counterfactuals=False)
@@ -404,8 +396,7 @@ class TestVectorizedTemporalRiskSimulator:
         small_simulator.initialize_population()
         small_simulator.simulate_temporal_evolution()
         small_simulator.generate_ml_predictions(
-            [0], n_optimization_iterations=1
-        )
+            [0])
 
         # Test with very selective interventions
         small_simulator.assign_interventions(
@@ -659,8 +650,7 @@ class TestInterventionDuration:
         duration_simulator.initialize_population()
         duration_simulator.simulate_temporal_evolution()
         duration_simulator.generate_ml_predictions(
-            [0], n_optimization_iterations=1
-        )
+            [0])
         duration_simulator.assign_interventions(
             assignment_strategy="random", treatment_fraction=0.5
         )
@@ -690,8 +680,7 @@ class TestInterventionDuration:
 
         # Generate predictions at times 0 and 2 (overlap with duration=4)
         duration_simulator.generate_ml_predictions(
-            [0, 2], n_optimization_iterations=1
-        )
+            [0, 2])
         duration_simulator.assign_interventions(
             assignment_strategy="random", treatment_fraction=0.8
         )
@@ -722,7 +711,7 @@ class TestInterventionDuration:
 
         simulator.initialize_population()
         simulator.simulate_temporal_evolution()
-        simulator.generate_ml_predictions([0], n_optimization_iterations=1)
+        simulator.generate_ml_predictions([0])
         simulator.assign_interventions(
             assignment_strategy="random", treatment_fraction=0.6
         )
@@ -772,8 +761,7 @@ class TestInterventionDuration:
 
         # Predictions at times 0, 6, 12 (non-overlapping with duration=4)
         duration_simulator.generate_ml_predictions(
-            [0, 6, 12], n_optimization_iterations=1
-        )
+            [0, 6, 12])
         duration_simulator.assign_interventions(
             assignment_strategy="random", treatment_fraction=0.4
         )
@@ -807,8 +795,7 @@ class TestInterventionDuration:
             simulator.initialize_population()
             simulator.simulate_temporal_evolution()
             simulator.generate_ml_predictions(
-                [0, 5], n_optimization_iterations=1
-            )
+                [0, 5])
 
             kwargs = {}
             if strategy in ["random", "top_k"]:
@@ -842,8 +829,7 @@ class TestInterventionDuration:
         duration_simulator.initialize_population()
         duration_simulator.simulate_temporal_evolution()
         duration_simulator.generate_ml_predictions(
-            [0], n_optimization_iterations=1
-        )
+            [0])
         duration_simulator.assign_interventions(
             assignment_strategy="top_k", treatment_fraction=0.2
         )
@@ -889,8 +875,7 @@ class TestMLOptimizationAlignment:
         test_simulator.initialize_population()
         test_simulator.simulate_temporal_evolution()
         test_simulator.generate_ml_predictions(
-            [0], n_optimization_iterations=1
-        )
+            [0])
 
         # Test different thresholds
         thresholds = [0.3, 0.5, 0.7]
@@ -916,8 +901,7 @@ class TestMLOptimizationAlignment:
         test_simulator.initialize_population()
         test_simulator.simulate_temporal_evolution()
         test_simulator.generate_ml_predictions(
-            [0], n_optimization_iterations=1
-        )
+            [0])
 
         # Test different fractions
         fractions = [0.1, 0.2, 0.3]
@@ -943,8 +927,7 @@ class TestMLOptimizationAlignment:
         test_simulator.initialize_population()
         test_simulator.simulate_temporal_evolution()
         test_simulator.generate_ml_predictions(
-            [0], n_optimization_iterations=1
-        )
+            [0])
 
         # Random strategy should work without issues
         test_simulator.assign_interventions(
@@ -966,8 +949,7 @@ class TestMLOptimizationAlignment:
         test_simulator.initialize_population()
         test_simulator.simulate_temporal_evolution()
         test_simulator.generate_ml_predictions(
-            [0, 5], n_optimization_iterations=1
-        )
+            [0, 5])
 
         test_simulator.assign_interventions(
             assignment_strategy="ml_threshold",
@@ -1014,8 +996,7 @@ class TestMLOptimizationAlignment:
             test_simulator.initialize_population()
             test_simulator.simulate_temporal_evolution()
             test_simulator.generate_ml_predictions(
-                [0], n_optimization_iterations=1
-            )
+                [0])
 
             test_simulator.assign_interventions(
                 assignment_strategy="ml_threshold",
@@ -1023,15 +1004,16 @@ class TestMLOptimizationAlignment:
             )
 
             # Verify optimization was called with correct parameters
-            mock_optimize.assert_called_once_with("ml_threshold", 0.4, None)
+            mock_optimize.assert_called_once_with(
+                "ml_threshold", 0.4, None, n_iterations=20
+            )
 
     def test_optimization_updates_cached_params(self, test_simulator):
         """Test that optimization updates cached ML parameters."""
         test_simulator.initialize_population()
         test_simulator.simulate_temporal_evolution()
         test_simulator.generate_ml_predictions(
-            [0], n_optimization_iterations=1
-        )
+            [0])
 
         # Store initial cached params (unused but kept for clarity)
         # initial_params = test_simulator._cached_ml_params.copy()
@@ -1052,8 +1034,7 @@ class TestMLOptimizationAlignment:
         test_simulator.initialize_population()
         test_simulator.simulate_temporal_evolution()
         test_simulator.generate_ml_predictions(
-            [0], n_optimization_iterations=1
-        )
+            [0])
 
         # Should handle gracefully even with few/no positive cases
         test_simulator.assign_interventions(

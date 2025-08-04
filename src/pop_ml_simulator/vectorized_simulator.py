@@ -234,11 +234,14 @@ class VectorizedTemporalRiskSimulator:
         self,
         prediction_times: List[int],
         target_sensitivity: float = 0.8,
-        target_ppv: float = 0.3,
-        n_optimization_iterations: int = 20
+        target_ppv: float = 0.3
     ) -> None:
         """
         Generate ML predictions at specified time points.
+
+        Initial predictions use default noise parameters. Optimization
+        happens later during intervention assignment when the assignment
+        strategy is known.
 
         Parameters
         ----------
@@ -248,8 +251,6 @@ class VectorizedTemporalRiskSimulator:
             Target sensitivity for ML model
         target_ppv : float, default=0.3
             Target positive predictive value
-        n_optimization_iterations : int, default=20
-            Number of optimization iterations for noise parameters
         """
         if not self._temporal_simulated:
             raise ValueError("Temporal evolution must be simulated first")
@@ -264,48 +265,27 @@ class VectorizedTemporalRiskSimulator:
         # Store prediction times
         self.results.ml_prediction_times = prediction_times
 
-        # Optimize ML parameters once using first valid prediction time
-        if self._cached_ml_params is None and prediction_times:
+        # Use default parameters for initial predictions
+        # Optimization will happen later when assignment strategy is known
+        if self._cached_ml_params is None:
+            # Set default noise parameters
+            self._cached_ml_params = {
+                'correlation': 0.7,
+                'scale': 0.3
+            }
             import logging
             logging.debug(
-                f"Optimizing ML parameters "
-                f"(iterations={n_optimization_iterations})..."
+                "Using default ML parameters for initial predictions. "
+                "Optimization will occur during intervention assignment."
             )
-            for pred_time in prediction_times:
-                if (pred_time + self.prediction_window <=
-                        self.n_timesteps):
-                    # Use first valid prediction time for parameter
-                    # optimization
-                    risk_windows = extract_risk_windows(
-                        self.results.temporal_risk_matrix,
-                        start_time=pred_time,
-                        window_length=self.prediction_window
-                    )
-                    integrated_risks = integrate_window_risk(
-                        risk_windows,
-                        timestep_duration=self.timestep_duration
-                    )
-                    true_labels = self._generate_true_labels(pred_time)
 
-                    # Optimize parameters once
-                    self._cached_ml_params = (
-                        self.ml_simulator.optimize_noise_parameters(
-                            true_labels,
-                            integrated_risks,
-                            n_iterations=n_optimization_iterations
-                        )
-                    )
-                    logging.debug("ML parameter optimization completed")
-                    break
-
-        # Set cached parameters if available
-        if self._cached_ml_params:
-            self.ml_simulator.noise_correlation = (
-                self._cached_ml_params['correlation']
-            )
-            self.ml_simulator.noise_scale = (
-                self._cached_ml_params['scale']
-            )
+        # Set parameters from cache
+        self.ml_simulator.noise_correlation = (
+            self._cached_ml_params['correlation']
+        )
+        self.ml_simulator.noise_scale = (
+            self._cached_ml_params['scale']
+        )
 
         # Generate predictions at each time point
         for pred_time in prediction_times:
@@ -436,10 +416,12 @@ class VectorizedTemporalRiskSimulator:
         self,
         assignment_strategy: str,
         threshold: float,
-        treatment_fraction: Optional[float]
+        treatment_fraction: Optional[float],
+        n_iterations: int = 20
     ) -> None:
         """
-        Re-optimize ML parameters for the specific assignment strategy.
+        Optimize ML parameters for the specific assignment strategy.
+        This is the single optimization point in the simulation pipeline.
 
         Parameters
         ----------
@@ -449,16 +431,32 @@ class VectorizedTemporalRiskSimulator:
             Threshold for ml_threshold strategy
         treatment_fraction : float, optional
             Fraction for top_k or random strategies
+        n_iterations : int, default=20
+            Number of optimization iterations
         """
         if (self.ml_simulator is None or
                 self.results.ml_prediction_times is None):
             return
 
-        # Use the first prediction time for re-optimization
+        # Skip optimization for random strategy
+        if assignment_strategy == "random":
+            import logging
+            logging.debug(
+                "Skipping ML optimization for random assignment strategy"
+            )
+            return
+
+        # Use the first prediction time for optimization
         pred_time = self.results.ml_prediction_times[0]
 
         if (pred_time + self.prediction_window > self.n_timesteps):
             return  # Skip if prediction window extends beyond simulation
+
+        import logging
+        logging.debug(
+            f"Optimizing ML parameters for {assignment_strategy} strategy "
+            f"(iterations={n_iterations})"
+        )
 
         # Extract risk windows and generate true labels
         risk_windows = extract_risk_windows(
@@ -472,11 +470,11 @@ class VectorizedTemporalRiskSimulator:
         )
         true_labels = self._generate_true_labels(pred_time)
 
-        # Re-optimize with assignment strategy parameters
+        # Optimize with assignment strategy parameters
         optimized_params = self.ml_simulator.optimize_noise_parameters(
             true_labels,
             integrated_risks,
-            n_iterations=10,  # Reduced iterations for re-optimization
+            n_iterations=n_iterations,
             assignment_strategy=assignment_strategy,
             assignment_threshold=threshold,
             assignment_fraction=treatment_fraction
@@ -484,6 +482,66 @@ class VectorizedTemporalRiskSimulator:
 
         # Update cached parameters
         self._cached_ml_params = optimized_params
+
+        # Update ML simulator with optimized parameters
+        self.ml_simulator.noise_correlation = optimized_params['correlation']
+        self.ml_simulator.noise_scale = optimized_params['scale']
+
+        logging.debug(
+            f"ML optimization complete: "
+            f"correlation={optimized_params['correlation']:.3f}, "
+            f"scale={optimized_params['scale']:.3f}"
+        )
+
+    def _regenerate_predictions_after_optimization(self) -> None:
+        """
+        Regenerate ML predictions using optimized parameters.
+        Called after optimization to ensure predictions match optimized model.
+        """
+        if (self.ml_simulator is None or
+                self.results.ml_prediction_times is None or
+                self._cached_ml_params is None):
+            return
+
+        import logging
+        logging.debug("Regenerating ML predictions with optimized parameters")
+
+        # Clear existing predictions
+        self.results.ml_predictions.clear()
+        self.results.ml_binary_predictions.clear()
+
+        # Regenerate predictions at each time point with optimized parameters
+        for pred_time in self.results.ml_prediction_times:
+            if pred_time + self.prediction_window > self.n_timesteps:
+                continue
+
+            # Extract risk windows for this prediction time
+            risk_windows = extract_risk_windows(
+                self.results.temporal_risk_matrix,
+                start_time=pred_time,
+                window_length=self.prediction_window
+            )
+
+            # Integrate window risks
+            integrated_risks = integrate_window_risk(
+                risk_windows,
+                timestep_duration=self.timestep_duration
+            )
+
+            # Generate true labels for this prediction window
+            true_labels = self._generate_true_labels(pred_time)
+
+            # Generate ML predictions using optimized parameters
+            ml_scores, ml_binary = self.ml_simulator.generate_predictions(
+                true_labels,
+                integrated_risks,
+                noise_correlation=self.ml_simulator.noise_correlation or 0.7,
+                noise_scale=self.ml_simulator.noise_scale or 0.3
+            )
+
+            # Store results
+            self.results.ml_predictions[pred_time] = ml_scores
+            self.results.ml_binary_predictions[pred_time] = ml_binary
 
     def validate_no_re_enrollment(self) -> bool:
         """
@@ -668,7 +726,8 @@ class VectorizedTemporalRiskSimulator:
         self,
         assignment_strategy: str = "ml_threshold",
         threshold: float = 0.5,
-        treatment_fraction: Optional[float] = None
+        treatment_fraction: Optional[float] = None,
+        n_optimization_iterations: int = 20
     ) -> None:
         """
         Assign interventions based on ML predictions.
@@ -684,14 +743,21 @@ class VectorizedTemporalRiskSimulator:
             Threshold for ML-based assignment
         treatment_fraction : float, optional
             Fraction of patients to treat (for random/top_k strategies)
+        n_optimization_iterations : int, default=20
+            Number of optimization iterations for ML parameters
         """
         if not self._ml_predictions_generated:
             raise ValueError("ML predictions must be generated first")
 
-        # Re-optimize ML parameters for the specific assignment strategy
+        # Optimize ML parameters for the specific assignment strategy
         self._optimize_for_assignment_strategy(
-            assignment_strategy, threshold, treatment_fraction
+            assignment_strategy, threshold, treatment_fraction,
+            n_iterations=n_optimization_iterations
         )
+
+        # Regenerate predictions with optimized parameters for consistency
+        if assignment_strategy != "random":
+            self._regenerate_predictions_after_optimization()
 
         # Initialize intervention tracking
         intervention_data = []
@@ -934,13 +1000,13 @@ class VectorizedTemporalRiskSimulator:
         self.generate_ml_predictions(
             prediction_times,
             target_sensitivity=target_sensitivity,
-            target_ppv=target_ppv,
-            n_optimization_iterations=n_optimization_iterations
+            target_ppv=target_ppv
         )
         self.assign_interventions(
             assignment_strategy=assignment_strategy,
             threshold=threshold,
-            treatment_fraction=treatment_fraction
+            treatment_fraction=treatment_fraction,
+            n_optimization_iterations=n_optimization_iterations
         )
         self.simulate_incidents(
             generate_counterfactuals=generate_counterfactuals
