@@ -56,8 +56,7 @@ def test_basic_functionality():
         simulator.generate_ml_predictions(
             prediction_times=[0],  # Reduced to one prediction time
             target_sensitivity=0.8,
-            target_ppv=0.3,
-            n_optimization_iterations=1  # Minimal for speed
+            target_ppv=0.3
         )
         print(f"✓ ML predictions generated for {len(simulator.results.ml_predictions)} time points")
         
@@ -226,8 +225,7 @@ def test_different_assignment_strategies():
             simulator.initialize_population()
             simulator.simulate_temporal_evolution()
             simulator.generate_ml_predictions(
-                prediction_times=[0],
-                n_optimization_iterations=1
+                prediction_times=[0]
             )
             
             # Assign interventions with different strategies
