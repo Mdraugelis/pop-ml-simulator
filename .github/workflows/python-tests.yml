@@ -23,7 +23,7 @@ jobs:
       - name: Run fast core tests (skips expensive ML optimization)
         run: python tests/run_tests.py -k "not test_public_functions_are_decorated and not test_notebook"
       - name: Run notebook structure validation
-        run: python tests/run_tests.py tests/test_notebooks.py::test_notebooks_exist -v
+        run: python tests/run_tests.py --integration tests/test_notebooks.py::test_notebooks_exist -v
 
   # Full comprehensive tests (manual trigger for releases)
   # Uncomment the lines below to enable full testing when needed
