@@ -9,14 +9,18 @@ basic functionality without the full configuration overhead.
 import os
 import sys
 import time
-import numpy as np
 from pathlib import Path
 from unittest.mock import patch
+
+import numpy as np
+import pytest
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from pop_ml_simulator import VectorizedTemporalRiskSimulator
+
+pytestmark = pytest.mark.integration
 
 # Mock expensive ML optimization for all tests
 def mock_ml_optimization():

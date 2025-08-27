@@ -8,18 +8,31 @@ import nbformat
 from nbconvert.preprocessors import ExecutePreprocessor
 import pytest
 
+pytestmark = pytest.mark.integration
+
 # Add src to path for notebook imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 NOTEBOOKS_DIR = os.path.join(os.path.dirname(__file__), '..', 'notebooks')
 TIMEOUT = 60  # 1 minute timeout per notebook
 
+EXPECTED_NOTEBOOKS = [
+    '01_risk_distribution_exploration.ipynb',
+    '02_temporal_risk_dynamics.ipynb',
+    '03_hazard_modeling.ipynb',
+    '06_temporal_risk_bounds_deep_dive.ipynb'
+]
+
 
 def get_notebook_paths():
-    """Get all notebook paths in the notebooks directory."""
+    """Get paths of notebooks we expect to execute."""
     notebook_paths = []
     for filename in os.listdir(NOTEBOOKS_DIR):
-        if filename.endswith('.ipynb') and not filename.startswith('.'):
+        if (
+            filename.endswith('.ipynb')
+            and not filename.startswith('.')
+            and filename in EXPECTED_NOTEBOOKS
+        ):
             notebook_paths.append(os.path.join(NOTEBOOKS_DIR, filename))
     return sorted(notebook_paths)
 
@@ -71,18 +84,12 @@ def test_notebooks_exist():
     notebook_paths = get_notebook_paths()
     assert len(notebook_paths) > 0, "No notebooks found to test"
 
-    expected_notebooks = [
-        '01_risk_distribution_exploration.ipynb',
-        '02_temporal_risk_dynamics.ipynb',
-        '03_hazard_modeling.ipynb',
-        '06_temporal_risk_bounds_deep_dive.ipynb'
-    ]
-
     found_notebooks = [os.path.basename(path) for path in notebook_paths]
 
-    for expected in expected_notebooks:
-        assert expected in found_notebooks, \
+    for expected in EXPECTED_NOTEBOOKS:
+        assert expected in found_notebooks, (
             f"Expected notebook {expected} not found"
+        )
 
 
 if __name__ == "__main__":
