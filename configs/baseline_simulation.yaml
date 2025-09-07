@@ -14,8 +14,8 @@ random_seed: 42
 
 # Population parameters
 population:
-  n_patients: 50000
-  annual_incident_rate: 0.03  # 8% annual incident rate
+  n_patients: 500000
+  annual_incident_rate: 0.0075  # 8% annual incident rate
   risk_concentration: 0.5     # Beta distribution concentration parameter
   
 # Temporal simulation settings
